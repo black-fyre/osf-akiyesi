@@ -1,0 +1,48 @@
+[
+  {
+    "id": "bodija-scale-1",
+    "to": "40404*REPORT-BODIJA9",
+    "from": "+234801e0001",
+    "text": "Drums being offloaded behind the compound wall again last night.",
+    "date": "2023-12-09T08:00:00+00:00"
+  },
+  {
+    "id": "bodija-scale-2",
+    "to": "40404*REPORT-BODIJA9",
+    "from": "+234801e0002",
+    "text": "Strong smell of chemicals coming from the boys' quarters at the back of the house.",
+    "date": "2023-12-15T08:00:00+00:00"
+  },
+  {
+    "id": "bodija-scale-3",
+    "to": "40404*REPORT-BODIJA9",
+    "from": "+234801e0003",
+    "text": "Unmarked containers keep arriving late at night, offloaded quickly by two men.",
+    "date": "2023-12-22T08:00:00+00:00"
+  },
+  {
+    "id": "bodija-scale-4",
+    "to": "40404*REPORT-BODIJA9",
+    "from": "+234801e0004",
+    "text": "Warehouse activity at night has picked up, generator running till morning.",
+    "date": "2023-12-30T08:00:00+00:00"
+  },
+  {
+    "id": "bodija-scale-5",
+    "to": "40404*REPORT-BODIJA9",
+    "from": "+234801e0005",
+    "text": "More chemical drums moved in through the back gate this week.",
+    "date": "2024-01-06T08:00:00+00:00"
+  },
+  {
+    "id": "bodija-scale-6",
+    "to": "40404*REPORT-BODIJA9",
+    "from": "+234801e0006",
+    "text": "Neighbours noticed unmarked containers stacked behind the fence again.",
+    "date": "2024-01-12T08:00:00+00:00"
+  },
+  {
+    "_incident_date": "2024-01-16T12:00:00+00:00",
+    "_note": "16 Jan 2024 Bodija explosives incident; not itself a report"
+  }
+]

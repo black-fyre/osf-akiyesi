@@ -1,0 +1,33 @@
+# Corroboration thresholds (CLAUDE.md design rule #3).
+#
+# Normal channel: a cluster becomes a "watch" once it has reports from at
+# least `watch.min_distinct_senders` distinct hashed senders spanning at
+# least `watch.min_span_days` days, and "escalates" once it reaches
+# `escalate.min_distinct_senders` distinct senders over the same minimum
+# span. The span requirement applies at both stages -- five reports inside
+# one hour from five different people still should not auto-escalate a
+# neighbourhood security response, so both stages carry a span floor.
+#
+# Protected channel: a whistleblower is by definition alone, so the
+# threshold is 1 distinct sender and no span requirement. It still goes
+# through the same pipeline (redaction, profiling guard) but routes straight
+# to the protected recipient list, labelled uncorroborated.
+#
+# Profiling guard: if more than this fraction of a cluster's reports needed
+# identity-content redaction, the cluster is flagged as a possible profiling
+# cascade and held for manual review before it can escalate.
+
+normal_channel:
+  watch:
+    min_distinct_senders: 3
+    min_span_days: 3
+  escalate:
+    min_distinct_senders: 5
+    min_span_days: 3
+
+protected_channel:
+  min_distinct_senders: 1
+  min_span_days: 0
+
+profiling_guard:
+  max_redacted_fraction: 0.6

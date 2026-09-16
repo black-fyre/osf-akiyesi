@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Àkíyèsí{% endblock %}
+{% block content %}
+<p>Community early warning aggregation. Weak individual observations, corroborated into a pattern a security committee can act on &mdash; never a single report acted on alone.</p>
+<h2>Communities</h2>
+<table>
+  <tr><th>Community</th><th>Locale</th><th></th></tr>
+  {% for c in communities %}
+  <tr>
+    <td>{{ c.name }}</td>
+    <td>{{ c.locale }}</td>
+    <td><a class="btn" href="/desk?community={{ c.id }}">open desk</a></td>
+  </tr>
+  {% endfor %}
+</table>
+<p class="muted">Protected (whistleblower) reports never appear here &mdash; they route straight to each community's landlord association at <code>/protected-outbox?community=&lt;id&gt;</code>.</p>
+{% endblock %}

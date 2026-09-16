@@ -1,0 +1,64 @@
+# Pattern definitions (scalability seam #3 in CLAUDE.md): "data, not logic".
+#
+# Each pattern is a bundle of keywords/phrases (per locale) used to score an
+# incoming, already-redacted observation against a known behaviour pattern.
+# The demo runs on `burglary_casing`. `explosives_storage` exists to prove
+# the same pipeline generalises to a different pattern definition (the
+# Bodija scale slide) without touching app/extraction.py or app/clustering.py.
+#
+# A report that does not clear `min_score` against any pattern is filed as
+# `unclassified` -- it is stored (for audit completeness) but never
+# contributes to a watch/escalate cluster. This is what keeps ambient noise
+# (a noise complaint, a lost goat, a domestic argument) from polluting a
+# real pattern's corroboration count.
+
+min_score: 1
+
+patterns:
+  - id: burglary_casing
+    name: "Burglary casing"
+    locale_keywords:
+      en-NG:
+        - "unloading sack"
+        - "unloading sacks"
+        - "unloading bag"
+        - "unloading bags"
+        - "strange vehicle"
+        - "unfamiliar vehicle"
+        - "parked outside"
+        - "casing"
+        - "counting houses"
+        - "watching the house"
+        - "watching our house"
+        - "photographing the house"
+        - "photographing houses"
+        - "climbed the fence"
+        - "climbing the fence"
+        - "loitering"
+        - "checking gates"
+        - "checking locks"
+        - "testing the gate"
+        - "scouting"
+        - "night unloading"
+        - "unloading at night"
+        - "men unloading"
+        - "unloading sacks into"
+      yo:
+        - "n gbe apo sinu ile"
+        - "won n wo ile wa"
+        - "moto to ye lasan"
+        - "won n yi ile ka"
+
+  - id: explosives_storage
+    name: "Illegal explosives / hazardous material storage"
+    locale_keywords:
+      en-NG:
+        - "drums being offloaded"
+        - "chemical drums"
+        - "mining explosives"
+        - "blasting caps"
+        - "storing explosives"
+        - "strong smell of chemicals"
+        - "warehouse activity at night"
+        - "unmarked containers"
+      yo: []

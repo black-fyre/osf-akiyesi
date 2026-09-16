@@ -1,0 +1,61 @@
+# Identity-marker vocabulary for the redaction layer (app/redaction.py).
+#
+# This is config, not logic, for the same reason patterns.yaml is: adding a
+# language or an identity category some other community needs to guard
+# against should not require touching the redaction code. The rule-based
+# client (app/llm.py: RuleBasedClient) matches these case-insensitively as
+# whole phrases; the Vertex/Gemini client (when configured) is instructed
+# with the same category list via prompts/redaction_v1*.md so the two stay
+# aligned.
+
+categories:
+  nationality:
+    en-NG:
+      - "Nigerian"
+      - "Ghanaian"
+      - "Beninese"
+      - "Cameroonian"
+      - "Chadian"
+      - "Nigerien"
+      - "Malian"
+      - "foreigner"
+      - "foreign national"
+      - "immigrant"
+
+  ethnicity_tribe:
+    en-NG:
+      - "Yoruba"
+      - "Igbo"
+      - "Hausa"
+      - "Fulani"
+      - "Ijaw"
+      - "Edo"
+      - "Tiv"
+      - "Efik"
+      - "Ibibio"
+      - "Kanuri"
+      - "Nupe"
+
+  religion:
+    en-NG:
+      - "Muslim"
+      - "Christian"
+      - "Islamic"
+      - "Pentecostal"
+      - "Catholic"
+      - "traditionalist"
+      - "herbalist worshipper"
+
+  stranger_or_foreigner_markers:
+    en-NG:
+      - "stranger"
+      - "not from here"
+      - "not from this area"
+      - "outsider"
+      - "does not look like he belongs"
+      - "doesn't look like he belongs"
+      - "new face"
+      - "unfamiliar face"
+      - "looked like a Fulani herdsman"
+      - "spoke with an accent"
+      - "spoke a different language"

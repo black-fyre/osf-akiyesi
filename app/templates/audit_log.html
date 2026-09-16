@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Audit log &middot; {{ community.name }}{% endblock %}
+{% block content %}
+<p><a href="/desk?community={{ community.id }}">&larr; back to clusters</a></p>
+<h2>Audit log &mdash; {{ community.name }}</h2>
+<p class="muted">Who decided, on what evidence, when. Normal-channel escalations only.</p>
+<table>
+  <tr><th>Decided at</th><th>Pattern</th><th>Decided by</th><th>Evidence</th><th>Profiling redacted %</th></tr>
+  {% for e in entries %}
+  <tr>
+    <td>{{ e.decided_at.strftime('%Y-%m-%d %H:%M UTC') }}</td>
+    <td>{{ e.pattern_id }}</td>
+    <td>{{ e.decided_by }}</td>
+    <td>{{ e.evidence_report_ids | length }} report(s)</td>
+    <td>{{ (e.profiling_guard_redacted_fraction * 100) | int }}%</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="5" class="muted">No escalations yet.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

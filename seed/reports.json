@@ -1,0 +1,422 @@
+[
+  {
+    "id": "okeado-clean-1",
+    "to": "40404*REPORT-OKEADO2",
+    "from": "+23480110001",
+    "text": "Saw a strange vehicle parked outside the empty plot on Alade Street for over an hour.",
+    "date": "2026-01-06T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-nearmiss-1",
+    "to": "40404*REPORT-OKEADO2",
+    "from": "+23480120001",
+    "text": "There were unmarked containers behind the old warehouse on Property Row.",
+    "date": "2026-01-07T21:00:00+00:00"
+  },
+  {
+    "id": "bodija-profiling-1",
+    "to": "40404*REPORT-BODIJA9",
+    "from": "+23480160001",
+    "text": "A Fulani stranger was seen checking gates along our close late at night.",
+    "date": "2026-01-07T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-noise-1",
+    "to": "40404*REPORT-OKEADO2",
+    "from": "+23480130001",
+    "text": "Someone's goat keeps escaping and eating flowers on our street, please can the owner fence it.",
+    "date": "2026-01-08T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-clean-2",
+    "to": "40404*REPORT-OKEADO2",
+    "from": "+23480110002",
+    "text": "Men were unloading sacks into the unfinished building near Alade Street around 9pm.",
+    "date": "2026-01-09T21:00:00+00:00"
+  },
+  {
+    "id": "bodija-noise-1",
+    "to": "40404*REPORT-BODIJA9",
+    "from": "+23480170001",
+    "text": "The generator at the corner house is too loud every night this week.",
+    "date": "2026-01-09T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-protected-1",
+    "to": "40404*SAFE-OKEADO2",
+    "from": "+23480150001",
+    "text": "The gateman is asking for a bribe before he lets visitors in at night.",
+    "date": "2026-01-10T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-adversarial-1",
+    "to": "40404*REPORT-OKEADO2",
+    "from": "+23480140001",
+    "text": "Chidi Okoro is a thief, everyone should avoid his shop.",
+    "date": "2026-01-11T21:00:00+00:00"
+  },
+  {
+    "id": "bodija-profiling-2",
+    "to": "40404*REPORT-BODIJA9",
+    "from": "+23480160002",
+    "text": "Someone who is not from this area was loitering near the compound entrance.",
+    "date": "2026-01-11T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-clean-3",
+    "to": "40404*REPORT-OKEADO2",
+    "from": "+23480110003",
+    "text": "Someone was checking gates along Alade Street block by block late last night.",
+    "date": "2026-01-12T21:00:00+00:00"
+  },
+  {
+    "id": "bodija-noise-7",
+    "to": "40404*REPORT-BODIJA9",
+    "from": "+23480170007",
+    "text": "A cat has been getting into bins on the close all week.",
+    "date": "2026-01-13T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-noise-2",
+    "to": "40404*REPORT-OKEADO2",
+    "from": "+23480130002",
+    "text": "Loud music from a party went on till 1am again, residents are complaining.",
+    "date": "2026-01-14T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-clean-4",
+    "to": "40404*REPORT-OKEADO2",
+    "from": "+23480110004",
+    "text": "Noticed a person testing the gate at the empty house on Alade Street.",
+    "date": "2026-01-15T21:00:00+00:00"
+  },
+  {
+    "id": "bodija-profiling-3",
+    "to": "40404*REPORT-BODIJA9",
+    "from": "+23480160003",
+    "text": "A stranger was testing the gate of the empty house, said he spoke with an accent.",
+    "date": "2026-01-15T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-noise-8",
+    "to": "40404*REPORT-OKEADO2",
+    "from": "+23480130008",
+    "text": "Pothole on the close is getting worse after the rain.",
+    "date": "2026-01-16T21:00:00+00:00"
+  },
+  {
+    "id": "bodija-protected-1",
+    "to": "40404*SAFE-BODIJA9",
+    "from": "+23480190001",
+    "text": "The security guard sleeps on duty and let a stranger walk in unchallenged last week.",
+    "date": "2026-01-16T21:00:00+00:00"
+  },
+  {
+    "id": "bodija-noise-2",
+    "to": "40404*REPORT-BODIJA9",
+    "from": "+23480170002",
+    "text": "Two neighbours were arguing loudly about a fence boundary again.",
+    "date": "2026-01-17T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-clean-5",
+    "to": "40404*REPORT-OKEADO2",
+    "from": "+23480110005",
+    "text": "A car was loitering near the junction on Alade Street twice this week.",
+    "date": "2026-01-19T21:00:00+00:00"
+  },
+  {
+    "id": "bodija-profiling-4",
+    "to": "40404*REPORT-BODIJA9",
+    "from": "+23480160004",
+    "text": "An outsider was seen unloading sacks into the unfinished building by the close.",
+    "date": "2026-01-20T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-noise-3",
+    "to": "40404*REPORT-OKEADO2",
+    "from": "+23480130003",
+    "text": "There was a shouting argument between two neighbours over a parking spot this morning.",
+    "date": "2026-01-21T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-protected-2",
+    "to": "40404*SAFE-OKEADO2",
+    "from": "+23480150002",
+    "text": "One of the Amotekun operatives has been extorting okada riders at the checkpoint.",
+    "date": "2026-01-22T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-clean-6",
+    "to": "40404*REPORT-OKEADO2",
+    "from": "+23480110006",
+    "text": "Watched two men photographing the houses on Alade Street from a parked car.",
+    "date": "2026-01-23T21:00:00+00:00"
+  },
+  {
+    "id": "bodija-clean-1",
+    "to": "40404*REPORT-BODIJA9",
+    "from": "+23480160005",
+    "text": "Two men were photographing the houses along our close from a parked car.",
+    "date": "2026-01-23T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-adversarial-2",
+    "to": "40404*REPORT-OKEADO2",
+    "from": "+23480140002",
+    "text": "Musa Danladi is a criminal and should be dealt with.",
+    "date": "2026-01-24T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-clean-followup-1",
+    "to": "40404*REPORT-OKEADO2",
+    "from": "+23480110001",
+    "text": "Same strange vehicle was parked outside the empty plot again tonight.",
+    "date": "2026-01-25T21:00:00+00:00"
+  },
+  {
+    "id": "bodija-noise-3",
+    "to": "40404*REPORT-BODIJA9",
+    "from": "+23480170003",
+    "text": "A stray dog has been going through bins on our close, can someone help.",
+    "date": "2026-01-25T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-protected-6",
+    "to": "40404*SAFE-OKEADO2",
+    "from": "+23480150006",
+    "text": "Amotekun operative was seen drinking on duty at the gate post last night.",
+    "date": "2026-01-26T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-noise-4",
+    "to": "40404*REPORT-OKEADO2",
+    "from": "+23480130004",
+    "text": "Please can someone fix the generator noise every night, it is disturbing sleep.",
+    "date": "2026-01-27T21:00:00+00:00"
+  },
+  {
+    "id": "bodija-clean-2",
+    "to": "40404*REPORT-BODIJA9",
+    "from": "+23480160006",
+    "text": "Someone was climbing the fence behind the close in the early hours.",
+    "date": "2026-01-27T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-clean-7",
+    "to": "40404*REPORT-OKEADO2",
+    "from": "+23480110007",
+    "text": "Someone was seen climbing the fence behind Alade Street in the early hours.",
+    "date": "2026-01-28T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-noise-9",
+    "to": "40404*REPORT-OKEADO2",
+    "from": "+23480130009",
+    "text": "Street light at the corner has been out for two weeks now.",
+    "date": "2026-01-29T21:00:00+00:00"
+  },
+  {
+    "id": "bodija-adversarial-1",
+    "to": "40404*REPORT-BODIJA9",
+    "from": "+23480180001",
+    "text": "Blessing Nwachukwu is a witch, mob justice for her if she is seen again.",
+    "date": "2026-01-29T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-clean-followup-2",
+    "to": "40404*REPORT-OKEADO2",
+    "from": "+23480110002",
+    "text": "More sacks were unloaded into the same unfinished building this week.",
+    "date": "2026-01-30T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-protected-3",
+    "to": "40404*SAFE-OKEADO2",
+    "from": "+23480150003",
+    "text": "A committee member collected money from a trader and never returned it.",
+    "date": "2026-01-31T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-clean-followup-3",
+    "to": "40404*REPORT-OKEADO2",
+    "from": "+23480110003",
+    "text": "Gate-checking behaviour on Alade Street again, same pattern as before.",
+    "date": "2026-02-01T21:00:00+00:00"
+  },
+  {
+    "id": "bodija-protected-2",
+    "to": "40404*SAFE-BODIJA9",
+    "from": "+23480190002",
+    "text": "Landlord chairman is abusing his position to allocate extra plots to his relatives.",
+    "date": "2026-02-01T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-noise-5",
+    "to": "40404*REPORT-OKEADO2",
+    "from": "+23480130005",
+    "text": "Refuse bin was not collected again this week on our row.",
+    "date": "2026-02-02T21:00:00+00:00"
+  },
+  {
+    "id": "bodija-noise-4",
+    "to": "40404*REPORT-BODIJA9",
+    "from": "+23480170004",
+    "text": "Water tanker blocked the close entrance for over an hour this morning.",
+    "date": "2026-02-02T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-clean-8",
+    "to": "40404*REPORT-OKEADO2",
+    "from": "+23480110008",
+    "text": "A group was counting houses along Alade Street, seemed to be casing the row.",
+    "date": "2026-02-03T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-nearmiss-2",
+    "to": "40404*REPORT-OKEADO2",
+    "from": "+23480120002",
+    "text": "A strong smell of chemicals came from the shed near the water tank.",
+    "date": "2026-02-04T21:00:00+00:00"
+  },
+  {
+    "id": "bodija-noise-8",
+    "to": "40404*REPORT-BODIJA9",
+    "from": "+23480170008",
+    "text": "Drainage by the close entrance needs clearing before the rains.",
+    "date": "2026-02-04T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-clean-followup-4",
+    "to": "40404*REPORT-OKEADO2",
+    "from": "+23480110005",
+    "text": "The loitering car came back to the junction a third time.",
+    "date": "2026-02-05T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-noise-6",
+    "to": "40404*REPORT-OKEADO2",
+    "from": "+23480130006",
+    "text": "The goat is back again, now it has eaten someone's washing off the line.",
+    "date": "2026-02-06T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-clean-followup-5",
+    "to": "40404*REPORT-OKEADO2",
+    "from": "+23480110004",
+    "text": "Another gate along Alade Street was tested overnight.",
+    "date": "2026-02-07T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-protected-4",
+    "to": "40404*SAFE-OKEADO2",
+    "from": "+23480150004",
+    "text": "The gateman let his friends in without checking anyone for two nights running.",
+    "date": "2026-02-07T21:00:00+00:00"
+  },
+  {
+    "id": "bodija-noise-5",
+    "to": "40404*REPORT-BODIJA9",
+    "from": "+23480170005",
+    "text": "Another argument over a parking spot near the close junction.",
+    "date": "2026-02-07T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-nearmiss-3",
+    "to": "40404*REPORT-OKEADO2",
+    "from": "+23480120001",
+    "text": "More unmarked containers arrived behind the old warehouse again this week.",
+    "date": "2026-02-08T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-adversarial-3",
+    "to": "40404*REPORT-OKEADO2",
+    "from": "+23480140003",
+    "text": "Peter Adeyemi is a fraudster, do not do business with him.",
+    "date": "2026-02-08T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-clean-followup-6",
+    "to": "40404*REPORT-OKEADO2",
+    "from": "+23480110006",
+    "text": "The men photographing houses were seen again, different car this time.",
+    "date": "2026-02-09T21:00:00+00:00"
+  },
+  {
+    "id": "bodija-protected-3",
+    "to": "40404*SAFE-BODIJA9",
+    "from": "+23480190003",
+    "text": "Gateman at the close entrance was seen taking money to let a vehicle skip the log book.",
+    "date": "2026-02-09T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-clean-followup-7",
+    "to": "40404*REPORT-OKEADO2",
+    "from": "+23480110007",
+    "text": "Fence-climbing behind Alade Street reported again by a second household.",
+    "date": "2026-02-10T21:00:00+00:00"
+  },
+  {
+    "id": "bodija-adversarial-2",
+    "to": "40404*REPORT-BODIJA9",
+    "from": "+23480180002",
+    "text": "Emeka Obi is a kidnapper, burn his house down.",
+    "date": "2026-02-10T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-noise-7",
+    "to": "40404*REPORT-OKEADO2",
+    "from": "+23480130007",
+    "text": "Another loud party till late, please can the association send a reminder.",
+    "date": "2026-02-11T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-clean-followup-8",
+    "to": "40404*REPORT-OKEADO2",
+    "from": "+23480110008",
+    "text": "Another count of houses along the row, same casing pattern as before.",
+    "date": "2026-02-12T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-noise-10",
+    "to": "40404*REPORT-OKEADO2",
+    "from": "+23480130010",
+    "text": "Two traders had a disagreement over stall space near the entrance.",
+    "date": "2026-02-13T21:00:00+00:00"
+  },
+  {
+    "id": "bodija-noise-6",
+    "to": "40404*REPORT-BODIJA9",
+    "from": "+23480170006",
+    "text": "The generator noise complaint again, still not resolved.",
+    "date": "2026-02-13T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-nearmiss-4",
+    "to": "40404*REPORT-OKEADO2",
+    "from": "+23480120002",
+    "text": "Another strong smell of chemicals from the shed again tonight.",
+    "date": "2026-02-14T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-protected-5",
+    "to": "40404*SAFE-OKEADO2",
+    "from": "+23480150005",
+    "text": "Committee member is asking residents for money outside the approved levy.",
+    "date": "2026-02-14T21:00:00+00:00"
+  },
+  {
+    "id": "okeado-adversarial-4",
+    "to": "40404*REPORT-OKEADO2",
+    "from": "+23480140004",
+    "text": "Grace Umeh is a bad person, chase her out of the estate.",
+    "date": "2026-02-15T21:00:00+00:00"
+  },
+  {
+    "id": "bodija-protected-4",
+    "to": "40404*SAFE-BODIJA9",
+    "from": "+23480190004",
+    "text": "Committee member threatened a resident who asked for the levy account statement.",
+    "date": "2026-02-15T21:00:00+00:00"
+  }
+]

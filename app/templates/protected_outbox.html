@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Protected outbox &middot; {{ community.name }}{% endblock %}
+{% block content %}
+<h2>Protected outbox &mdash; {{ community.name }}</h2>
+<p class="muted">Whistleblower reports about the security apparatus itself (gatemen, hired guards, committee members). Routed straight to the landlord association, threshold 1, labelled uncorroborated. <strong>The security-committee desk never sees this page's content.</strong></p>
+<table>
+  <tr><th>Pattern</th><th>Status</th><th>Received</th><th>Observation</th><th></th></tr>
+  {% for item in items %}
+  <tr>
+    <td>{{ item.report.pattern_id }}</td>
+    <td><span class="badge badge-{{ item.status }}">{{ item.status.replace('_',' ') }}</span></td>
+    <td>{{ item.report.received_at | date_only }}</td>
+    <td>{{ item.report.redacted_text }}</td>
+    <td>
+      {% if item.status == 'protected_ready' %}
+      <form method="post" action="/desk/protected-escalate">
+        <input type="hidden" name="community_id" value="{{ community.id }}">
+        <input type="hidden" name="report_id" value="{{ item.report.id }}">
+        <button type="submit">Send to landlord association</button>
+      </form>
+      {% elif item.status == 'protected_blocked_profiling' %}
+      <span class="muted">profiling guard fired &mdash; manual review</span>
+      {% else %}
+      <span class="muted">sent {{ item.already_escalated_at | date_only }}</span>
+      {% endif %}
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="5" class="muted">No protected reports yet.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

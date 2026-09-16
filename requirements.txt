@@ -1,0 +1,29 @@
+# app/ itself has zero third-party dependencies on purpose (see
+# docs/ai-usage.md: this iteration was built in a sandbox with no
+# package-registry access, so the core pipeline and tests had to run on
+# the standard library alone). Jinja2 and PyYAML below ARE used already
+# (they happened to be preinstalled in that sandbox); everything else here
+# is for the production Cloud Run deployment CLAUDE.md specifies and is
+# not required to run `python3 -m app.server` or the test suite today.
+#
+#   pip install -r requirements.txt
+
+# used today, by app/server.py and app/config.py
+jinja2>=3.0
+pyyaml>=6.0
+
+# production deployment target (CLAUDE.md "Stack") -- install these on a
+# machine with network access, then see app/main_fastapi.py and
+# app/llm.py:VertexGeminiClient / app/storage.py:FirestoreStore for the
+# documented (not yet wired-up) swap points.
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.6
+google-cloud-firestore>=2.16
+google-cloud-aiplatform>=1.47
+africastalking>=1.2.7
+
+# dev/test convenience once network is available (the checked-in test
+# suite itself only needs the standard library: `python3 -m unittest
+# discover -s tests -t . -v`)
+pytest>=8.0

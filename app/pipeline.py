@@ -1,0 +1,128 @@
+"""Pipeline orchestration: redact -> targeting guard -> classify -> extract
+-> store.
+
+app/ingest.py calls process_inbound() once per inbound message (whether it
+arrived via the real SMS webhook or the /simulate/inbound demo endpoint).
+Everything here is deliberately synchronous and side-effect-explicit so it
+is easy to unit test stage by stage as well as end to end.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, Dict, Optional
+
+from app.classifier import classify_channel
+from app.config import AppConfig, Community
+from app.extraction import extract
+from app.hashing import hash_sender
+from app.llm import LLMClient
+from app.models import Report, utcnow
+from app.redaction import redact_report_text
+from app.storage import Store
+from app.targeting_guard import check_named_target_accusation
+
+STATUS_STORED = "stored"
+STATUS_REJECTED_TARGETING = "rejected_targeting"
+STATUS_NEEDS_REVIEW_LOCALE = "needs_review_locale"
+
+SUPPORTED_LOCALES = {"en-NG", "yo"}
+
+
+class UnknownInboundError(ValueError):
+    pass
+
+
+class MissingFieldError(ValueError):
+    pass
+
+
+@dataclass(frozen=True)
+class InboundPayload:
+    to: str
+    sender: str
+    text: str
+    external_message_id: Optional[str]
+    locale_hint: Optional[str]
+    received_at: datetime
+
+
+def parse_payload(raw: Dict[str, Any]) -> InboundPayload:
+    to = raw.get("to") or raw.get("destination") or raw.get("shortCode")
+    sender = raw.get("from") or raw.get("sender")
+    text = raw.get("text") or raw.get("message")
+    if not to or not sender or not text:
+        raise MissingFieldError(f"payload missing required field(s) (to/from/text): {raw!r}")
+
+    received_at = utcnow()
+    if raw.get("date"):
+        try:
+            received_at = datetime.fromisoformat(raw["date"])
+        except ValueError:
+            pass  # keep utcnow() -- a malformed date must not crash ingest
+
+    return InboundPayload(
+        to=str(to),
+        sender=str(sender),
+        text=str(text),
+        external_message_id=raw.get("id"),
+        locale_hint=raw.get("locale"),
+        received_at=received_at,
+    )
+
+
+def process_inbound(raw_payload: Dict[str, Any], config: AppConfig, llm: LLMClient, store: Store) -> Report:
+    payload = parse_payload(raw_payload)
+
+    if payload.external_message_id:
+        existing = store.find_report_by_external_id(payload.external_message_id)
+        if existing is not None:
+            return existing  # idempotent replay / retry
+
+    community = config.community_by_inbound(payload.to)
+    if community is None:
+        raise UnknownInboundError(f"no community configured for inbound identifier {payload.to!r}")
+
+    effective_locale = payload.locale_hint or community.locale
+    locale_supported = effective_locale in SUPPORTED_LOCALES
+
+    redacted = redact_report_text(payload.text, community.locale, config, llm)
+
+    status = STATUS_STORED
+    rejection_reason: Optional[str] = None
+
+    if not locale_supported:
+        status = STATUS_NEEDS_REVIEW_LOCALE
+        rejection_reason = (
+            f"locale {effective_locale!r} is not in SUPPORTED_LOCALES {sorted(SUPPORTED_LOCALES)}; "
+            "stored for manual review rather than discarded, and excluded from clustering "
+            "until reviewed."
+        )
+
+    channel = classify_channel(payload.to, redacted.text, community, config, llm)
+
+    guard = check_named_target_accusation(redacted.text, community.locale, config)
+    if guard.blocked and status == STATUS_STORED:
+        status = STATUS_REJECTED_TARGETING
+        rejection_reason = guard.reason
+
+    extraction = extract(redacted.text, community, config, llm)
+
+    report = Report(
+        id=store.new_id(),
+        external_message_id=payload.external_message_id,
+        community_id=community.id,
+        channel=channel,
+        sender_hash=hash_sender(payload.sender),
+        redacted_text=redacted.text,
+        categories_redacted=redacted.categories_redacted,
+        pattern_id=extraction.pattern_id,
+        pattern_score=extraction.pattern_score,
+        time_of_day=extraction.time_of_day,
+        received_at=payload.received_at,
+        status=status,
+        rejection_reason=rejection_reason,
+        locale_detected=effective_locale,
+    )
+    store.save_report(report)
+    return report

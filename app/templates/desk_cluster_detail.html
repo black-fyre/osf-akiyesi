@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Cluster {{ cluster.pattern_id }}{% endblock %}
+{% block content %}
+<p><a href="/desk?community={{ community.id }}">&larr; back to clusters</a></p>
+<h2>{{ cluster.pattern_id.replace('_',' ') }}</h2>
+<span class="badge badge-{{ cluster.status }}">{{ cluster.status.replace('_',' ') }}</span>
+
+{% if cluster.status == 'escalate_blocked_profiling' %}
+<div class="guard-warning">
+  <strong>Profiling guard fired.</strong> {{ (cluster.profiling.redacted_fraction * 100) | round(0, 'floor') | int }}% of this cluster's reports required identity-content redaction (threshold: {{ (cluster.profiling.threshold * 100) | int }}%). This looks more like suspicion about a person than observation of behaviour. Escalation is held until a committee member reviews it manually.
+</div>
+{% endif %}
+
+<div class="card">
+  <h3>Referral brief</h3>
+  <p><strong>Community:</strong> {{ brief.location }}</p>
+  <p><strong>Corroboration:</strong> {{ brief.corroboration.distinct_senders }} distinct senders, {{ brief.corroboration.report_count }} reports</p>
+  <p><strong>Time window:</strong> {{ brief.time_window.from }} to {{ brief.time_window.to }}</p>
+  <p><strong>Redaction record:</strong> {{ brief.redaction_record.reports_redacted }}/{{ brief.redaction_record.reports_total }} reports redacted ({{ (brief.redaction_record.redacted_fraction * 100) | int }}%){% if brief.redaction_record.categories_seen %}, categories: {{ brief.redaction_record.categories_seen | join(', ') }}{% endif %}</p>
+  <h4>Observations (redacted)</h4>
+  <ul>
+    {% for obs in brief.observation_summary %}
+    <li>{{ obs }}</li>
+    {% endfor %}
+  </ul>
+</div>
+
+{% if cluster.status == 'escalate_ready' %}
+<form method="post" action="/desk/escalate">
+  <input type="hidden" name="community_id" value="{{ community.id }}">
+  <input type="hidden" name="pattern_id" value="{{ cluster.pattern_id }}">
+  <label>Decided by: <input type="text" name="decided_by" value="" placeholder="your name"></label>
+  <button type="submit">Escalate to {{ community.desk_recipients[0].name if community.desk_recipients else 'security committee' }}</button>
+</form>
+{% elif cluster.status == 'escalated' %}
+<p class="muted">Already escalated ({{ cluster.already_escalated_at | date_only }}). See the <a href="/desk/audit?community={{ community.id }}">audit log</a>.</p>
+{% else %}
+<p class="muted">Not yet eligible to escalate.</p>
+{% endif %}
+{% endblock %}

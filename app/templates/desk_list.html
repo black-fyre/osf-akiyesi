@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Desk &middot; {{ community.name }}{% endblock %}
+{% block content %}
+<h2>{{ community.name }}</h2>
+<p class="muted">Normal-channel clusters only. Protected reports are never queried for this view.</p>
+
+<table>
+  <tr>
+    <th>Pattern</th><th>Distinct senders</th><th>Span (days)</th><th>Status</th><th>Last updated</th><th></th>
+  </tr>
+  {% for c in clusters %}
+  <tr>
+    <td>{{ c.pattern_id }}</td>
+    <td>{{ c.distinct_senders }}</td>
+    <td>{{ "%.1f"|format(c.span_days) }}</td>
+    <td><span class="badge badge-{{ c.status }}">{{ c.status.replace('_', ' ') }}</span></td>
+    <td>{{ c.last_report_at | date_only }} &middot; <span class="muted">{{ c.last_report_at | age }}</span></td>
+    <td><a href="/desk/cluster?community={{ community.id }}&pattern={{ c.pattern_id }}">view</a></td>
+  </tr>
+  {% else %}
+  <tr><td colspan="6" class="muted">No clusters yet for this community.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

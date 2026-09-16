@@ -1,0 +1,43 @@
+# Vocabulary for the named-target accusation guard (app/targeting_guard.py).
+#
+# CLAUDE.md design rule #1 says intake asks what was observed, never who.
+# This guard is this iteration's enforcement of that rule for a case the
+# redaction layer does not cover: a report that names a specific resident
+# and attaches a character judgement to them, rather than describing
+# behaviour. It is a distinct failure mode from the four identity
+# categories in redaction_terms.yaml (which strip *stranger* markers) --
+# this one blocks reports that attack a *known, named* individual, and is
+# what the "malicious report targeting a named neighbour does not escalate"
+# test in CLAUDE.md exercises.
+#
+# epithets: character-judgement words. Matched in the pattern
+# "<Capitalized Name> is/are (a/an)? <epithet>".
+# mob_language: separate trigger -- if present alongside a capitalized name,
+# flags regardless of epithet match (e.g. "beat him", "mob justice").
+
+epithets:
+  en-NG:
+    - "thief"
+    - "witch"
+    - "wizard"
+    - "ritualist"
+    - "criminal"
+    - "kidnapper"
+    - "cultist"
+    - "fraudster"
+    - "armed robber"
+    - "evil person"
+    - "bad person"
+
+mob_language:
+  en-NG:
+    - "mob justice"
+    - "beat him"
+    - "beat her"
+    - "deal with him"
+    - "deal with her"
+    - "should be dealt with"
+    - "burn his house"
+    - "burn her house"
+    - "chase him out"
+    - "chase her out"

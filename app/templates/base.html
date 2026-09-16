@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{% block title %}Àkíyèsí{% endblock %}</title>
+  <style>
+    :root { color-scheme: light; }
+    body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; color: #1b1b1b; background: #fafaf8; }
+    header { border-bottom: 2px solid #1b1b1b; padding-bottom: .75rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: .5rem;}
+    header h1 { margin: 0; font-size: 1.4rem; }
+    nav a { margin-right: 1rem; color: #1b1b1b; }
+    table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+    th, td { text-align: left; padding: .5rem .6rem; border-bottom: 1px solid #ddd; vertical-align: top;}
+    th { background: #f0efe9; }
+    .badge { display: inline-block; padding: .15rem .5rem; border-radius: .3rem; font-size: .8rem; font-weight: 600; }
+    .badge-watch { background: #fff3cd; color: #7a5b00; }
+    .badge-escalate_ready { background: #ffd7d7; color: #7a0000; }
+    .badge-escalate_blocked_profiling { background: #e0d4ff; color: #3c1b7a; }
+    .badge-escalated { background: #d6f5d6; color: #0a5c0a; }
+    .badge-below_threshold { background: #eee; color: #555; }
+    .badge-protected_ready { background: #ffd7d7; color: #7a0000; }
+    .badge-protected_blocked_profiling { background: #e0d4ff; color: #3c1b7a; }
+    .badge-protected_escalated { background: #d6f5d6; color: #0a5c0a; }
+    .card { border: 1px solid #ddd; border-radius: .5rem; padding: 1rem; margin: 1rem 0; background: white;}
+    .muted { color: #666; font-size: .9rem; }
+    .guard-warning { border-left: 4px solid #7a0000; padding: .5rem .8rem; background: #fff0f0; margin: 1rem 0;}
+    footer { margin-top: 3rem; color: #888; font-size: .8rem; border-top: 1px solid #ddd; padding-top: 1rem; }
+    button, .btn { background: #1b1b1b; color: white; border: none; padding: .5rem 1rem; border-radius: .3rem; cursor: pointer; font-size: .95rem; }
+    button:hover, .btn:hover { background: #333; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Àkíyèsí <span class="muted">verification desk</span></h1>
+    <nav>
+      <a href="/">home</a>
+      {% if community %}
+      <a href="/desk?community={{ community.id }}">clusters</a>
+      <a href="/desk/audit?community={{ community.id }}">audit log</a>
+      {% endif %}
+    </nav>
+  </header>
+  {% block content %}{% endblock %}
+  <footer>No public map. No public list. No enforcement power. This view never shows protected-channel reports or timestamps finer than a day.</footer>
+</body>
+</html>

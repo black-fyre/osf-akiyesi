@@ -1,0 +1,44 @@
+# Community configuration.
+#
+# Adding a community is a config change, never a code change (scalability
+# seam #1 in CLAUDE.md). Each community owns one inbound identifier per
+# channel -- clustering scopes to a community by construction because every
+# inbound report already carries the identifier it arrived on, not because a
+# reporter fills in a geo field.
+#
+# normal_inbound / protected_inbound: the "to" address in the SMS webhook
+# payload (a shortcode+keyword pair in the Africa's Talking / Termii sense,
+# e.g. "40404*REPORT"). They may reuse the same base number with different
+# keywords -- what matters is that the pair is unique per community.
+#
+# thresholds: overrides app/config.py's default_thresholds for this
+# community only. Omit a field to inherit the default.
+
+communities:
+  - id: oke-ado-phase2
+    name: "Oke-Ado Phase 2 Residents Association"
+    locale: en-NG
+    normal_inbound: "40404*REPORT-OKEADO2"
+    protected_inbound: "40404*SAFE-OKEADO2"
+    protected_recipients:
+      - name: "Oke-Ado Phase 2 Landlord Association"
+        contact: "landlord-assoc-okeado2@example.org"
+    desk_recipients:
+      - name: "Oke-Ado Phase 2 Security Committee"
+        contact: "security-committee-okeado2@example.org"
+    thresholds: {}
+
+  # A second community row, present to prove the "new community = one config
+  # row" claim in the scalability tests. Not used in the demo narrative.
+  - id: bodija-close-9
+    name: "Bodija Close 9 Residents Association"
+    locale: en-NG
+    normal_inbound: "40404*REPORT-BODIJA9"
+    protected_inbound: "40404*SAFE-BODIJA9"
+    protected_recipients:
+      - name: "Bodija Close 9 Landlord Association"
+        contact: "landlord-assoc-bodija9@example.org"
+    desk_recipients:
+      - name: "Bodija Close 9 Security Committee"
+        contact: "security-committee-bodija9@example.org"
+    thresholds: {}
