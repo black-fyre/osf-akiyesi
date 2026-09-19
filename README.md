@@ -155,5 +155,5 @@ docs/ai-usage.md         AI-usage log (what was delegated, what was rejected, a 
 
 - [x] GitHub repo, README explaining what it does and how to run it (this file) -- not yet pushed public
 - [ ] Demo video
-- [ ] Pitch deck (PDF)
-- [ ] Written summary
+- [x] Pitch deck (PDF)
+- [x] Written summary
