@@ -1,4 +1,4 @@
-# Written summary — Àkíyèsí
+# Written summary, Àkíyèsí
 
 Andela × Open Society Foundations Hackathon, "Information You Can Trust." Submitted by Fehintoluwa, Ibadan, Nigeria, solo.
 
