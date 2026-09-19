@@ -153,7 +153,7 @@ docs/ai-usage.md         AI-usage log (what was delegated, what was rejected, a 
 
 ## Submission checklist status
 
-- [x] GitHub repo, README explaining what it does and how to run it (this file) -- not yet pushed public
+- [x] GitHub repo (public): https://github.com/black-fyre/osf-rumoured -- README explains what it does and how to run it
 - [ ] Demo video
 - [x] Pitch deck (PDF)
 - [x] Written summary
