@@ -78,6 +78,16 @@ class PatternDefinition:
     id: str
     name: str
     locale_keywords: Dict[str, List[str]]
+    # A pattern can carry its own corroboration bar instead of inheriting
+    # the community's thresholds.yaml default -- app/clustering.py resolves
+    # these first, falling back to community.thresholds.normal_channel when
+    # a pattern doesn't set them. high_signal is a separate, purely
+    # descriptive flag (drives the desk UI's priority badge); it does not
+    # by itself change any threshold -- see config/patterns.yaml's
+    # file-level comment for why these are kept as two independent knobs.
+    high_signal: bool = False
+    watch_override: Optional[SpanThreshold] = None
+    escalate_override: Optional[SpanThreshold] = None
 
     def keywords_for(self, locale: str) -> List[str]:
         return self.locale_keywords.get(locale, [])
@@ -213,6 +223,9 @@ def load_config(config_dir: Optional[Path] = None) -> AppConfig:
             id=p["id"],
             name=p["name"],
             locale_keywords=p.get("locale_keywords", {}),
+            high_signal=bool(p.get("high_signal", False)),
+            watch_override=SpanThreshold(**p["watch"]) if p.get("watch") else None,
+            escalate_override=SpanThreshold(**p["escalate"]) if p.get("escalate") else None,
         )
         for p in patterns_raw.get("patterns", [])
     ]

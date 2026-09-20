@@ -190,7 +190,7 @@ def make_handler(ctx: AppContext):
                     for e in ctx.store.audit_log_for_community(community.id)
                     if e.action == "escalate"
                 }
-                clusters = clustering.compute_clusters(reports, community, already_escalated=already)
+                clusters = clustering.compute_clusters(reports, community, already_escalated=already, patterns=ctx.config.patterns)
             return self._send(200, render("desk_list.html", community=community, clusters=clusters, communities=ctx.config.communities.values()))
 
         def _desk_cluster_detail(self, qs):
@@ -205,7 +205,7 @@ def make_handler(ctx: AppContext):
                     for e in ctx.store.audit_log_for_community(community.id)
                     if e.action == "escalate"
                 }
-                clusters = clustering.compute_clusters(reports, community, already_escalated=already)
+                clusters = clustering.compute_clusters(reports, community, already_escalated=already, patterns=ctx.config.patterns)
             match = next((c for c in clusters if c.pattern_id == pattern_id), None)
             if match is None:
                 return self._send(404, b"cluster not found", "text/plain")
@@ -226,7 +226,7 @@ def make_handler(ctx: AppContext):
                     for e in ctx.store.audit_log_for_community(community.id)
                     if e.action == "escalate"
                 }
-                clusters = clustering.compute_clusters(reports, community, already_escalated=already)
+                clusters = clustering.compute_clusters(reports, community, already_escalated=already, patterns=ctx.config.patterns)
                 match = next((c for c in clusters if c.pattern_id == pattern_id), None)
                 if match is None:
                     return self._send(404, b"cluster not found", "text/plain")

@@ -109,7 +109,7 @@ def desk_list(request: Request, community: Optional[str] = None) -> HTMLResponse
     if c is None:
         return HTMLResponse("unknown community", status_code=404)
     reports = store.reports_for_community(c.id, channel="normal")
-    clusters = clustering.compute_clusters(reports, c, already_escalated=_already_escalated(c.id))
+    clusters = clustering.compute_clusters(reports, c, already_escalated=_already_escalated(c.id), patterns=config.patterns)
     return templates.TemplateResponse(
         "desk_list.html", {"request": request, "community": c, "clusters": clusters, "communities": config.communities.values()}
     )
@@ -121,7 +121,7 @@ def desk_cluster_detail(request: Request, community: str, pattern: str) -> HTMLR
     if c is None:
         return HTMLResponse("unknown community", status_code=404)
     reports = store.reports_for_community(c.id, channel="normal")
-    clusters = clustering.compute_clusters(reports, c, already_escalated=_already_escalated(c.id))
+    clusters = clustering.compute_clusters(reports, c, already_escalated=_already_escalated(c.id), patterns=config.patterns)
     match = next((cl for cl in clusters if cl.pattern_id == pattern), None)
     if match is None:
         return HTMLResponse("cluster not found", status_code=404)
@@ -135,7 +135,7 @@ def desk_escalate(community_id: str = Form(...), pattern_id: str = Form(...), de
     if c is None:
         return JSONResponse({"error": "unknown community"}, status_code=404)
     reports = store.reports_for_community(c.id, channel="normal")
-    clusters = clustering.compute_clusters(reports, c, already_escalated=_already_escalated(c.id))
+    clusters = clustering.compute_clusters(reports, c, already_escalated=_already_escalated(c.id), patterns=config.patterns)
     match = next((cl for cl in clusters if cl.pattern_id == pattern_id), None)
     if match is None:
         return JSONResponse({"error": "cluster not found"}, status_code=404)

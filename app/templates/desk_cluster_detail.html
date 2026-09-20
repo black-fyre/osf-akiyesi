@@ -2,7 +2,7 @@
 {% block title %}Cluster {{ cluster.pattern_id }}{% endblock %}
 {% block content %}
 <p><a href="/desk?community={{ community.id }}">&larr; back to clusters</a></p>
-<h2>{{ cluster.pattern_id.replace('_',' ') }}</h2>
+<h2>{{ cluster.pattern_id.replace('_',' ') }}{% if cluster.high_signal %} <span class="badge badge-priority" title="Lower corroboration bar for this pattern -- see config/patterns.yaml">priority</span>{% endif %}</h2>
 <span class="badge badge-{{ cluster.status }}">{{ cluster.status.replace('_',' ') }}</span>
 
 {% if cluster.status == 'escalate_blocked_profiling' %}

@@ -10,7 +10,7 @@
   </tr>
   {% for c in clusters %}
   <tr>
-    <td>{{ c.pattern_id }}</td>
+    <td>{{ c.pattern_id }}{% if c.high_signal %} <span class="badge badge-priority" title="Lower corroboration bar for this pattern -- see config/patterns.yaml">priority</span>{% endif %}</td>
     <td>{{ c.distinct_senders }}</td>
     <td>{{ "%.1f"|format(c.span_days) }}</td>
     <td><span class="badge badge-{{ c.status }}">{{ c.status.replace('_', ' ') }}</span></td>

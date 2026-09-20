@@ -13,6 +13,15 @@ channel, where a whistleblower is by definition alone, and threshold is 1
 by config, not by a special case here: protected reports are handled by
 protected_escalations() below using the exact same profiling-guard call,
 just without the distinct-sender/span gate.
+
+A pattern can also carry its own, lower watch/escalate bar instead of the
+community default (PatternDefinition.watch_override/escalate_override in
+config/patterns.yaml, e.g. weapon_sighting) -- still config, not a special
+case, and design rule #3 still holds: the lowest any pattern's escalate
+threshold is allowed to go is a matter of what's written in
+config/patterns.yaml, but it is never 1. A single high-signal report only
+ever reaches STATUS_WATCH (visible, prioritised on the desk), never
+STATUS_ESCALATE_READY.
 """
 from __future__ import annotations
 
@@ -20,7 +29,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from app.config import AppConfig, Community
+from app.config import AppConfig, Community, PatternDefinition
 from app.models import Report
 from app.profiling_guard import ProfilingGuardResult, check_profiling_cascade
 
@@ -47,6 +56,11 @@ class ClusterSummary:
     status: str
     profiling: ProfilingGuardResult
     already_escalated_at: Optional[datetime] = None
+    # True when this pattern is marked high_signal in config/patterns.yaml
+    # (e.g. weapon_sighting) -- drives the desk UI's priority badge. Purely
+    # descriptive: it does not change `status` or the threshold math below,
+    # which is driven by the pattern's watch_override/escalate_override.
+    high_signal: bool = False
 
 
 @dataclass
@@ -68,14 +82,25 @@ def compute_clusters(
     reports: List[Report],
     community: Community,
     already_escalated: Optional[Dict[str, datetime]] = None,
+    patterns: Optional[List[PatternDefinition]] = None,
 ) -> List[ClusterSummary]:
     """already_escalated maps pattern_id -> decided_at of the most recent
     escalation for this community+pattern, so a cluster that has already
     been sent to the committee (with no new reports since) shows as
     STATUS_ESCALATED instead of re-offering escalate_ready.
+
+    patterns (optional, config.patterns): looked up per pattern_id so a
+    pattern can carry its own watch/escalate thresholds
+    (PatternDefinition.watch_override/escalate_override) instead of
+    inheriting community.thresholds.normal_channel uniformly -- e.g.
+    weapon_sighting escalates at 2 senders/1 day instead of the community
+    default. Omitting this parameter (existing callers, existing tests)
+    keeps every pattern on the community default, unchanged from before --
+    this parameter is additive and backward compatible by construction.
     """
     already_escalated = already_escalated or {}
-    thresholds = community.thresholds.normal_channel
+    default_thresholds = community.thresholds.normal_channel
+    patterns_by_id = {p.id: p for p in (patterns or [])}
 
     by_pattern: Dict[str, List[Report]] = {}
     for r in reports:
@@ -85,6 +110,13 @@ def compute_clusters(
 
     summaries: List[ClusterSummary] = []
     for pattern_id, group in by_pattern.items():
+        pattern_def = patterns_by_id.get(pattern_id)
+        watch_threshold = (pattern_def.watch_override if pattern_def else None) or default_thresholds.watch
+        escalate_threshold = (
+            pattern_def.escalate_override if pattern_def else None
+        ) or default_thresholds.escalate
+        high_signal = bool(pattern_def.high_signal) if pattern_def else False
+
         distinct_senders = len({r.sender_hash for r in group})
         span = _span_days(group)
         profiling = check_profiling_cascade(
@@ -92,8 +124,13 @@ def compute_clusters(
             community.thresholds.profiling_guard_max_redacted_fraction,
         )
 
-        meets_watch = distinct_senders >= thresholds.watch.min_distinct_senders and span >= thresholds.watch.min_span_days
-        meets_escalate = distinct_senders >= thresholds.escalate.min_distinct_senders and span >= thresholds.escalate.min_span_days
+        meets_watch = (
+            distinct_senders >= watch_threshold.min_distinct_senders and span >= watch_threshold.min_span_days
+        )
+        meets_escalate = (
+            distinct_senders >= escalate_threshold.min_distinct_senders
+            and span >= escalate_threshold.min_span_days
+        )
 
         last_escalated_at = already_escalated.get(pattern_id)
         last_report_at = max(r.received_at for r in group)
@@ -122,6 +159,7 @@ def compute_clusters(
                 status=status,
                 profiling=profiling,
                 already_escalated_at=last_escalated_at,
+                high_signal=high_signal,
             )
         )
 

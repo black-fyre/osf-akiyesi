@@ -100,5 +100,88 @@ class ClusteringTests(unittest.TestCase):
         self.assertEqual(clusters[0].status, clustering.STATUS_ESCALATE_READY)
 
 
+class HighSignalPatternThresholdTests(unittest.TestCase):
+    """weapon_sighting (config/patterns.yaml: high_signal, watch=1/0,
+    escalate=2/1) gets its own, lower corroboration bar instead of the
+    community default (3/3 watch, 5/3 escalate) -- but design rule #3
+    ("never escalate on one report") is not moved for any pattern: a
+    single high-signal report only ever reaches STATUS_WATCH.
+    """
+
+    def setUp(self):
+        self.config = get_config()
+        self.community = self.config.community_by_id("oke-ado-phase2")
+
+    def test_single_high_signal_report_reaches_watch_not_escalate(self):
+        reports = [make_report(0, "+2348010000001", timedelta(days=0), pattern_id="weapon_sighting")]
+        clusters = clustering.compute_clusters(reports, self.community, patterns=self.config.patterns)
+        self.assertEqual(len(clusters), 1)
+        self.assertEqual(clusters[0].distinct_senders, 1)
+        self.assertEqual(clusters[0].status, clustering.STATUS_WATCH)
+        self.assertNotEqual(clusters[0].status, clustering.STATUS_ESCALATE_READY)
+        self.assertTrue(clusters[0].high_signal)
+
+    def test_two_senders_one_day_apart_escalates(self):
+        reports = [
+            make_report(0, "+2348010000001", timedelta(days=0), pattern_id="weapon_sighting"),
+            make_report(1, "+2348010000002", timedelta(days=1), pattern_id="weapon_sighting"),
+        ]
+        clusters = clustering.compute_clusters(reports, self.community, patterns=self.config.patterns)
+        self.assertEqual(clusters[0].distinct_senders, 2)
+        self.assertEqual(clusters[0].status, clustering.STATUS_ESCALATE_READY)
+
+    def test_two_senders_same_moment_does_not_meet_span_and_stays_watch(self):
+        # Two people reporting within the same minute is not two days of
+        # independent corroboration -- the override's own span floor
+        # (1 day) still has to be cleared, same principle as the community
+        # default's span floor for every other pattern.
+        reports = [
+            make_report(0, "+2348010000001", timedelta(minutes=0), pattern_id="weapon_sighting"),
+            make_report(1, "+2348010000002", timedelta(minutes=5), pattern_id="weapon_sighting"),
+        ]
+        clusters = clustering.compute_clusters(reports, self.community, patterns=self.config.patterns)
+        self.assertEqual(clusters[0].distinct_senders, 2)
+        self.assertEqual(clusters[0].status, clustering.STATUS_WATCH)
+
+    def test_normal_pattern_is_unaffected_when_patterns_param_is_passed(self):
+        # Passing patterns= must not change behaviour for a pattern that
+        # doesn't define its own overrides -- burglary_casing still needs
+        # the community default (3 senders/3 days to watch).
+        reports = [
+            make_report(0, "+2348010000001", timedelta(days=0)),
+            make_report(1, "+2348010000002", timedelta(days=1)),
+        ]
+        clusters = clustering.compute_clusters(reports, self.community, patterns=self.config.patterns)
+        self.assertEqual(clusters[0].status, clustering.STATUS_BELOW_THRESHOLD)
+        self.assertFalse(clusters[0].high_signal)
+
+    def test_omitting_patterns_param_falls_back_to_community_default_even_for_weapon_sighting(self):
+        # Backward compatibility: a caller that doesn't pass patterns=
+        # (every call site before this feature, and any test that doesn't
+        # opt in) gets the old, uniform behaviour -- a single weapon_sighting
+        # report does NOT get the override without patterns= being passed.
+        reports = [make_report(0, "+2348010000001", timedelta(days=0), pattern_id="weapon_sighting")]
+        clusters = clustering.compute_clusters(reports, self.community)
+        self.assertEqual(clusters[0].status, clustering.STATUS_BELOW_THRESHOLD)
+        self.assertFalse(clusters[0].high_signal)
+
+    def test_profiling_guard_still_blocks_a_high_signal_escalation(self):
+        # The accelerated pathway does not bypass the profiling guard --
+        # two corroborating high-signal reports that are mostly redacted
+        # for identity content still get held for manual review, exactly
+        # like any other pattern.
+        reports = [
+            make_report(
+                0, "+2348010000001", timedelta(days=0), pattern_id="weapon_sighting", was_redacted=True
+            ),
+            make_report(
+                1, "+2348010000002", timedelta(days=1), pattern_id="weapon_sighting", was_redacted=True
+            ),
+        ]
+        clusters = clustering.compute_clusters(reports, self.community, patterns=self.config.patterns)
+        self.assertEqual(clusters[0].status, clustering.STATUS_ESCALATE_BLOCKED_PROFILING)
+        self.assertTrue(clusters[0].profiling.fired)
+
+
 if __name__ == "__main__":
     unittest.main()

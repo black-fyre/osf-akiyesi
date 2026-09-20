@@ -7,6 +7,101 @@ CLAUDE.md's AI-coding-usage section. Newest session first.
 
 ---
 
+## Session 4 -- 20 September 2026 (Day 5 of the plan)
+
+**Delegated:** a new escalation pathway for "high-signal" reports (the
+developer's own example: a report mentioning a weapon or armed robbers),
+on request ("I am thinking about adding a pathway certain high signal
+words in a report get an accelerated escalation pathway"). Before writing
+any code, laid out three options and their trade-offs, given the deadline
+is the next day: (1) give a high-signal pattern its own lower
+corroboration threshold plus a priority flag on a single report, never
+bypassing the human/corroboration gate; (2) document it as a deferred
+next step rather than touch tested core logic this close to the deadline;
+(3) a true single-report bypass for matching keywords. Flagged (3)
+explicitly as the option most likely to draw a pointed judge question,
+since it would contradict a claim already in the written summary ("no
+single report can trigger anything") and reopen the exact false-alarm/
+profiling risk the redaction and corroboration layers exist to prevent --
+especially given OSF/Build Up's stated thesis of shifting power away from
+security-led responses. The developer chose (1).
+
+**What was built:** a new `weapon_sighting` pattern in
+`config/patterns.yaml`, marked `high_signal: true` with its own
+`watch`/`escalate` thresholds (1 sender/0 days to watch, 2 senders/1 day
+to escalate, against the community default of 3/3 and 5/3). `app/config.py`'s
+`PatternDefinition` gained `high_signal`, `watch_override` and
+`escalate_override` fields. `app/clustering.py`'s `compute_clusters()`
+gained an optional `patterns` parameter: when supplied, a pattern's own
+override is used if present, otherwise the community default -- omitting
+the parameter (every call site and every test written before this
+session) reproduces the exact old behaviour, so this is additive, not a
+breaking change to an already-tested function. The seven real call sites
+(`app/server.py` x3, `app/main_fastapi.py` x3, `seed/replay.py` x1) were
+updated to pass `patterns=config.patterns` so the running app actually
+uses it. The desk templates get a black "priority" badge next to a
+high-signal pattern's name, in both the cluster list and the cluster
+detail view, so a committee member can see at a glance which patterns
+carry a lower bar and why (the badge's title attribute points at
+`config/patterns.yaml`).
+
+**Design rule #3 ("never escalate on one report") was checked, not just
+asserted:** `tests/test_clustering.py` gained a
+`HighSignalPatternThresholdTests` class (7 tests) that explicitly proves
+a single `weapon_sighting` report only ever reaches `STATUS_WATCH`, that
+two senders one day apart escalates but two senders in the same minute
+does not (the override's own span floor is still enforced), that a
+normal pattern's behaviour is unchanged when `patterns=` is passed, that
+omitting `patterns=` falls back to the old uniform behaviour even for
+`weapon_sighting`, and -- the test most worth having -- that the
+profiling guard still blocks an escalation on this pathway exactly like
+any other, so "accelerated" never means "unguarded."
+
+**Where the agent caught its own near-miss before it shipped:** while
+choosing keywords for `weapon_sighting`, checked
+`RuleBasedClient.score_patterns` (`app/llm.py`) and found it does a plain
+substring check with no word-boundary matching -- unlike `redact()`,
+which was fixed for exactly this class of bug in Session 1 (the "Tiv"
+inside "operatives" false-positive). A keyword list using "armed men" or
+"armed robbers" would have made "two **unarmed** men were seen" score as
+a weapon sighting, since "armed men" is a literal substring of "unarmed
+men." Avoided the collision by choosing keywords that don't have this
+containment problem ("gun", "weapon", "robbers", "machete", etc.) rather
+than "armed X" phrases, and locked the choice in with a regression test
+(`tests/test_extraction.py::test_unarmed_does_not_false_positive_on_armed_keyword`)
+instead of only noticing it informally. `RuleBasedClient.score_patterns`'s
+underlying substring-matching behaviour was left unchanged -- fixing it
+properly (word-boundary matching like `redact()` already has) is flagged
+below as a not-yet-done item, since it's a real, pre-existing gap this
+session found but a wider change to make one day before the deadline than
+this feature needed.
+
+**Verified, not just asserted:** full suite -- 80 tests, up from 69 (7
+new clustering tests, 5 new `tests/test_extraction.py` tests, the latter
+a new file since none existed for `app/extraction.py` before) -- passes
+on a plain `python3 -m unittest discover -s tests -t . -v`. Also ran the
+real server end to end (`python3 -m app.server` against a scratch
+database, submitted a report reading "Two men were seen carrying a gun
+near the fence around 9pm." through `/simulate/inbound`, then fetched
+`/desk?community=oke-ado-phase2`) and confirmed by eye that the rendered
+HTML shows the report as a single-sender `watch` cluster carrying the new
+priority badge -- not just that the Python-level test suite passes, but
+that the feature actually renders correctly through the real HTTP path.
+
+**Not yet done:** `RuleBasedClient.score_patterns`'s plain-substring
+keyword matching (noted above) is a pre-existing gap, not introduced this
+session, but this session is what surfaced it concretely; a proper fix
+(word-boundary matching, matching `redact()`) is a good candidate for a
+next session if time allows, but was deliberately not done here to keep
+this change scoped to what the new pattern needed. The deck and written
+summary were not updated to mention `weapon_sighting` -- the developer
+had already signed off on both ("this is good to go") before this
+session, so a mention was left for her to add herself if she wants the
+demo script to include it, rather than re-editing a finalised deliverable
+unasked.
+
+---
+
 ## Session 3 -- 20 September 2026 (Day 5 of the plan)
 
 **Delegated:** replacing Session 2's Gemini/Vertex AI wiring with a real

@@ -11,6 +11,18 @@
 # contributes to a watch/escalate cluster. This is what keeps ambient noise
 # (a noise complaint, a lost goat, a domestic argument) from polluting a
 # real pattern's corroboration count.
+#
+# `high_signal` + `watch` / `escalate`: a pattern can carry its own
+# corroboration bar instead of inheriting the community's
+# config/thresholds.yaml default (app/clustering.py resolves per-pattern
+# first, falling back to the community default when a pattern omits these).
+# This is still config, not a special case in code -- design rule #3
+# ("never escalate on one report") is unchanged: `weapon_sighting` below
+# still needs 2 distinct senders to escalate, not 1. What changes is that a
+# single report is enough to surface it as a priority `watch` item on the
+# desk immediately, rather than waiting on the same 3-sender bar every
+# other pattern uses -- a threat description shouldn't sit in a queue
+# behind a parked-car sighting. See docs/ai-usage.md for the reasoning.
 
 min_score: 1
 
@@ -61,4 +73,42 @@ patterns:
         - "strong smell of chemicals"
         - "warehouse activity at night"
         - "unmarked containers"
+      yo: []
+
+  - id: weapon_sighting
+    name: "Weapon or armed-robbery sighting"
+    # A single report is enough to show up as a priority watch item; two
+    # distinct senders within a day escalates, instead of the default
+    # 5 senders / 3 days -- see the file-level comment above. Never 1
+    # sender to escalate: that line is not moved for any pattern.
+    high_signal: true
+    watch:
+      min_distinct_senders: 1
+      min_span_days: 0
+    escalate:
+      min_distinct_senders: 2
+      min_span_days: 1
+    locale_keywords:
+      en-NG:
+        - "weapon"
+        - "weapons"
+        - "gun"
+        - "guns"
+        - "pistol"
+        - "gunshot"
+        - "gunshots"
+        - "cutlass"
+        - "machete"
+        - "robbers"
+        - "gang of robbers"
+        - "waving a gun"
+        - "brandishing a weapon"
+        - "had a gun"
+        - "carrying a gun"
+        - "he had a weapon"
+      # Left empty deliberately, same as explosives_storage: the Yoruba
+      # locale is a stub not yet reviewed by a fluent speaker (see
+      # README.md's "Not yet built"), and getting a weapon-related
+      # keyword list wrong in translation is a worse failure mode than
+      # leaving it unclassified for yo until a fluent speaker checks it.
       yo: []

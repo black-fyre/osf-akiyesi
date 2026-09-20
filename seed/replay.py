@@ -83,7 +83,7 @@ def replay(seed_path: Path, profile: str = "suggested") -> None:
             stored_statuses[r.status] = stored_statuses.get(r.status, 0) + 1
 
         normal_reports = [r for r in reports if r.channel == "normal"]
-        clusters = clustering.compute_clusters(normal_reports, community)
+        clusters = clustering.compute_clusters(normal_reports, community, patterns=config.patterns)
         protected_reports = [r for r in reports if r.channel == "protected"]
         protected = clustering.protected_items(protected_reports, community)
 

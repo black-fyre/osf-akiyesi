@@ -48,7 +48,14 @@ briefs, and a profiling guard, are built and tested:
 4. **Clustering with corroboration threshold** -- `app/clustering.py`.
    Normal channel: 3 distinct senders / 3+ days = watch, 5 / 3+ days =
    escalate-ready. Protected channel: threshold 1, uncorroborated by
-   design. All values in `config/thresholds.yaml`.
+   design. All values in `config/thresholds.yaml`. A pattern can also
+   carry its own, lower bar instead of the community default --
+   `weapon_sighting` (`config/patterns.yaml`) needs only 2 senders / 1+
+   day to escalate, and a single report already surfaces as a priority
+   `watch` item on the desk. Design rule #3 ("never escalate on one
+   report") is not moved for any pattern: the lowest an `escalate`
+   threshold is allowed to go is whatever a pattern's own config says, and
+   it is never 1.
 5. **Verification desk** -- `app/server.py` + `app/templates/`.
    Server-side Jinja2 templates, no JS framework. Lists clusters, shows a
    referral brief, escalate action, audit log. Never queries protected-
