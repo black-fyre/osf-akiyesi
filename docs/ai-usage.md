@@ -7,6 +7,82 @@ CLAUDE.md's AI-coding-usage section. Newest session first.
 
 ---
 
+## Session 2 -- 20 September 2026 (Day 5 of the plan)
+
+**Delegated:** wiring `app/llm.py`'s `VertexGeminiClient` into a real Vertex
+AI implementation, on request ("let's start working on building in the
+actual AI calls"), after confirming with the developer that Gemini should
+stay the model provider (asked directly why Gemini was chosen in the first
+place; answered honestly that it was her own choice in the original brief,
+not something introduced later; she then said "let's go with Gemini").
+
+**Constraint discovered before writing any code, not assumed:** confirmed
+by direct request from both this build sandbox and the developer's own
+device sandbox that `generativelanguage.googleapis.com`,
+`aiplatform.googleapis.com` and `api.openai.com` all return `403`
+(proxy-blocked); only `api.anthropic.com` is reachable. Surfaced this to
+the developer via a structured question before writing anything, given
+the one-day-to-deadline risk of adding a live external dependency to an
+already-tested, already-disclosed submission, rather than either silently
+attempting a workaround or silently declining the request. She chose to
+proceed with Gemini anyway, understanding that the network call itself
+could not be exercised from either sandbox this session has access to.
+
+**What was actually built, given that constraint:** `VertexGeminiClient`
+is now a real implementation, not a stub. It loads each of `prompts/*.md`
+as a `GenerativeModel`'s `system_instruction`, calls `generate_content`
+with `response_mime_type="application/json"` at `temperature=0`, and
+validates the JSON that comes back. The response-validation logic was
+deliberately split into three pure functions --
+`parse_redaction_response`, `parse_classification_response`,
+`parse_extraction_response` -- that take a plain dict and touch no
+network, specifically so this half of the work could be genuinely
+unit-tested despite the SDK being unreachable.
+`tests/test_llm_gemini_parsing.py` (25 tests) exercises those functions
+against response shapes copied from each prompt file's own worked
+example, plus deliberately malformed variants: a missing key, a wrong
+type, an unknown redaction category, a negative score, a `bool`
+masquerading as an `int`. `tests/test_llm_gemini_client_wiring.py` (10
+tests) goes one step further: it substitutes a fake
+`vertexai`/`vertexai.generative_models` module via `sys.modules` and
+proves `VertexGeminiClient` calls the real SDK's documented interface
+correctly (`vertexai.init(project=, location=)`, one `GenerativeModel`
+per prompt with the right `system_instruction`, the right
+`generation_config`), and that a canned JSON reply round-trips correctly
+through all three public methods, including error paths (empty response,
+malformed JSON, a markdown-fenced ` ```json ` reply, a raised SDK
+exception).
+
+**What was not, and could not be, verified here:** an actual call to the
+real Vertex AI API. `scripts/smoke_test_gemini.py` is a new script, meant
+to be run by the developer herself on a machine with real GCP credentials
+and network access, that makes three real calls (one per prompt) using
+each prompt file's own worked-example input and prints the result next to
+the expected output for her to check by eye. This is disclosed plainly in
+`app/llm.py`'s module docstring, in `README.md`'s new "Real Gemini /
+Vertex AI setup" section, and here, rather than presented as verified when
+it is not.
+
+**Left unchanged, deliberately:** `AKIYESI_LLM_BACKEND` still defaults to
+`rule_based`. Nothing about the demo, the original 60 tests, or the
+deterministic client changed in this session -- `vertex_gemini` is
+strictly additive and opt-in, one day before the submission deadline, so
+the tested path stays the tested path whether or not the developer runs
+the smoke test before submitting.
+
+**Verified, not just asserted:** the full suite -- 70 tests, the original
+60 plus 35 new -- passes on a plain `python3 -m unittest discover -s tests
+-t . -v`; `scripts/smoke_test_gemini.py` was run in this sandbox both with
+`AKIYESI_GCP_PROJECT` unset and with the SDK absent, confirming both fail
+with the intended clear, actionable message rather than an unhandled
+traceback (it cannot be run to completion here, for the reason above).
+
+**Not yet done:** the live Vertex AI call itself, pending the developer's
+own smoke test on a machine with network access. Everything else already
+listed as not-yet-done in Session 1 is unchanged by this session.
+
+---
+
 ## Session 1 -- 16 September 2026 (Day 1 of the plan)
 
 **Delegated:** the entire first iteration, end to end, to Claude (Cowork/
@@ -101,7 +177,9 @@ routed through the same pipeline, but has not been reviewed by a fluent
 speaker, and is not itself deployment-ready); real Africa's Talking/Termii
 webhook signature verification (`app/server.py`'s webhook route accepts
 any POST -- fine for a demo, not for production, and named as a gap in
-`.env.example`); actually wiring and calling `VertexGeminiClient`;
+`.env.example`); `VertexGeminiClient` was wired to real Vertex AI calls in
+Session 2 below, but the live network call has not itself been verified
+from either sandbox this project was built in -- see that entry;
 Terraform/IaC for the Cloud Run + Firestore deployment (CLAUDE.md's
 variable-based-config rule is already followed in `config/*.yaml`, but no
 IaC has been written yet, so there is nothing to check that rule against

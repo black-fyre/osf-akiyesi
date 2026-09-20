@@ -82,8 +82,65 @@ ready FastAPI adapter over the same business logic). Full explanation in
 ### Not yet built (see `CLAUDE.md`'s Day 2-5 plan and cut order)
 
 Voice intake/transcription, a second locale beyond the Yoruba prompt stub,
-real SMS-provider webhook signature verification, the actual Vertex/Gemini
-wiring, and Cloud Run/Terraform deployment config.
+real SMS-provider webhook signature verification, and Cloud Run/Terraform
+deployment config.
+
+`app/llm.py`'s `VertexGeminiClient` is now a real implementation (not a
+stub) -- see the next section for what "real" means here and what still
+needs to be verified on a machine with network access.
+
+### Real Gemini / Vertex AI setup
+
+`AKIYESI_LLM_BACKEND=rule_based` is the default and what the demo and the
+full test suite run on, deliberately, this close to the deadline -- the
+deterministic client is already tested and disclosed, and nothing about it
+changes below. `vertex_gemini` is additive and opt-in.
+
+`VertexGeminiClient` (`app/llm.py`) loads each of `prompts/redaction_v1.md`,
+`prompts/classification_v1.md` and `prompts/extraction_v1.md` as a
+`GenerativeModel`'s `system_instruction`, calls `generate_content` with
+`response_mime_type="application/json"` at `temperature=0`, and validates
+the JSON that comes back before handing it to the rest of the pipeline.
+The prompt-loading, request-shaping and response-validation code is
+ordinary Python and is unit-tested two ways: `tests/test_llm_gemini_parsing.py`
+tests the response validation directly against shapes taken from each
+prompt file's own worked example (plus malformed variants), and
+`tests/test_llm_gemini_client_wiring.py` swaps in a fake Vertex AI SDK to
+prove `VertexGeminiClient` calls it the way its documented contract
+requires.
+
+What is **not** tested: an actual network call to Vertex AI. This repo was
+built in a sandbox with no route to `generativelanguage.googleapis.com` or
+`aiplatform.googleapis.com` (confirmed by direct request -- both return
+403; see `docs/ai-usage.md`), so the live API call itself has never been
+exercised. Before trusting `AKIYESI_LLM_BACKEND=vertex_gemini` for a demo,
+run the smoke test yourself, on a machine with real GCP credentials and
+network access:
+
+```bash
+# 1. Enable the Vertex AI API on a GCP project, then authenticate:
+gcloud auth application-default login
+
+# 2. Install the production dependency (not needed for rule_based):
+pip install -r requirements.txt
+
+# 3. Point at your project:
+export AKIYESI_GCP_PROJECT=<your-project-id>
+export AKIYESI_GCP_LOCATION=us-central1        # or your region
+export AKIYESI_GEMINI_MODEL=gemini-2.0-flash-001  # optional, this is the default
+
+# 4. Run the smoke test -- three real calls, one per prompt, printing
+#    what came back next to what prompts/*.md's worked example expects:
+python3 scripts/smoke_test_gemini.py
+
+# 5. Only once that looks right, run the app itself against Gemini:
+export AKIYESI_LLM_BACKEND=vertex_gemini
+python3 -m app.server
+```
+
+If `gemini-2.0-flash-001` isn't available in your project/region, pick any
+model your project has access to in the Vertex AI Model Garden and set
+`AKIYESI_GEMINI_MODEL` accordingly.
 
 ## Running it
 
@@ -106,8 +163,9 @@ curl -s -X POST http://127.0.0.1:8000/simulate/inbound \
 # then open http://127.0.0.1:8000/desk?community=oke-ado-phase2
 ```
 
-Run the test suite (35 tests, covers every item in CLAUDE.md's "Tests that
-must pass" list):
+Run the test suite (70 tests, covers every item in CLAUDE.md's "Tests that
+must pass" list, plus the Gemini response-parsing and SDK-wiring tests
+described above):
 
 ```bash
 python3 -m unittest discover -s tests -t . -v
@@ -132,7 +190,7 @@ app/
   config.py            loads config/*.yaml -- adding a community/language/pattern is a config change only
   models.py, storage.py    SQLite-backed Store (documented Firestore swap at the bottom of storage.py)
   hashing.py            sender phone -> salted hash, never stored in plaintext
-  llm.py                LLMClient interface: RuleBasedClient (runs today) / VertexGeminiClient (production, documented)
+  llm.py                LLMClient interface: RuleBasedClient (runs today) / VertexGeminiClient (real, network call unverified -- see above)
   redaction.py           the identity-stripping layer
   targeting_guard.py     named-neighbour-accusation guard
   classifier.py          normal vs protected channel
@@ -147,13 +205,14 @@ app/
 config/                 communities, thresholds, patterns, redaction terms, accusation terms -- all data, no code
 prompts/                versioned LLM prompts (redaction, classification, extraction; en-NG + yo stub)
 seed/                   generate_seed.py, reports.json, bodija_scale_replay.json, replay.py
-tests/                  35 tests, one file per component, covering every CLAUDE.md-required test
+scripts/smoke_test_gemini.py   run this yourself against real Vertex AI before trusting that backend for a demo
+tests/                  70 tests, one file per component, covering every CLAUDE.md-required test
 docs/ai-usage.md         AI-usage log (what was delegated, what was rejected, a bug a test caught)
 ```
 
 ## Submission checklist status
 
-- [x] GitHub repo (public): https://github.com/black-fyre/osf-rumoured -- README explains what it does and how to run it
+- [x] GitHub repo, README explaining what it does and how to run it (this file) -- not yet pushed public
 - [ ] Demo video
-- [x] Pitch deck (PDF)
-- [x] Written summary
+- [ ] Pitch deck (PDF)
+- [ ] Written summary
