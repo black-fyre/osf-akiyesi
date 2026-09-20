@@ -1,6 +1,6 @@
 # Pattern extraction prompt -- v1 -- en-NG
 
-Used by `app.llm.VertexGeminiClient.score_patterns` (production). The
+Used by `app.llm.AnthropicClient.score_patterns` (production). The
 rule-based client (what this iteration runs) implements the same contract
 as keyword scoring against `config/patterns.yaml` -- see
 `app/extraction.py`.

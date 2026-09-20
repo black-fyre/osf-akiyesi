@@ -7,7 +7,88 @@ CLAUDE.md's AI-coding-usage section. Newest session first.
 
 ---
 
+## Session 3 -- 20 September 2026 (Day 5 of the plan)
+
+**Delegated:** replacing Session 2's Gemini/Vertex AI wiring with a real
+Claude/Anthropic API implementation, on correction ("i actually meant
+claude" -- Session 2's "let's go with gemini" had been a misstatement).
+Asked the developer two scoping questions before touching any file: (1)
+add Claude as a new backend alongside the existing Gemini one, or replace
+Gemini entirely; (2) whether CLAUDE.md, the deck and the written summary
+(which all named "Gemini via Vertex AI" as the intended production stack)
+should be updated too. She chose full replacement plus updating every
+doc that named the old stack.
+
+**What was actually replaced:** `app/llm.py`'s `VertexGeminiClient` class
+is gone; `AnthropicClient` takes its place, calling the Anthropic Messages
+API (`client.messages.create(model=, system=, messages=[...])`) instead of
+Vertex AI's `generate_content`. The three pure response-validation
+functions (`parse_redaction_response`, `parse_classification_response`,
+`parse_extraction_response`) were kept completely unchanged and simply
+reused -- their contract comes from `prompts/*.md`'s own "Output contract"
+sections, not from any provider's SDK, so nothing about them was
+Gemini-specific to begin with. `tests/test_llm_gemini_parsing.py` was
+renamed to `tests/test_llm_response_parsing.py` to reflect that it was
+never really Gemini-specific either. `tests/test_llm_gemini_client_wiring.py`
+was replaced by `tests/test_llm_anthropic_client_wiring.py` (9 tests, one
+fewer than the Gemini version's 10 -- Vertex AI's SDK builds one
+`GenerativeModel` object per prompt, which the Gemini wiring tests checked
+for; the Anthropic SDK takes a system prompt per call instead, so that
+particular test no longer applies, not because coverage was dropped).
+`scripts/smoke_test_gemini.py` became `scripts/smoke_test_claude.py`, same
+role. `requirements.txt` swaps `google-cloud-aiplatform` for `anthropic`.
+`.env.example`, `README.md`'s setup section, `CLAUDE.md`'s Stack line,
+`config/redaction_terms.yaml`'s comment, and each `prompts/*.md` file's
+"Used by" header were all updated to name `AnthropicClient`/Claude instead
+of `VertexGeminiClient`/Gemini. Checked the deck and written summary
+directly (`grep -i "gemini\|vertex"` against both) before editing them:
+neither ever named Gemini or Vertex AI specifically -- both only ever said
+"an LLM" -- so there was nothing to change in either.
+
+**A genuine improvement this correction produced, not just a rename:**
+confirmed by direct request that `api.anthropic.com` is actually reachable
+from this sandbox -- a request to `/v1/messages` with no credentials
+returns `401` (a real, responsive endpoint), not the `403` (fully blocked)
+that `generativelanguage.googleapis.com` and `aiplatform.googleapis.com`
+returned in Session 2. The `anthropic` Python package still can't be
+`pip install`-ed here (no route to pypi.org, same package-registry
+restriction documented since Session 1), so the live SDK call still can't
+be exercised from this sandbox and `scripts/smoke_test_claude.py` still
+exists for the developer to run herself -- but this is a narrower,
+more honest gap than Session 2's: the network path to the provider itself
+is proven open, and only the local package installation and a real API
+key are missing, not connectivity to Anthropic at all.
+
+**Where the agent was wrong, and how it was caught:** Session 2 built a
+complete, tested, committed Gemini implementation on the strength of
+"let's go with gemini" without re-confirming that phrase against what the
+developer actually meant. She caught it herself, in the very next message
+("i actually meant claude"), not through any test or review step on this
+side. Recorded here plainly rather than folded quietly into a rename,
+because a full backend swap one day before the deadline is exactly the
+kind of AI-assisted misstep this log exists to surface, and because the
+fix was cheap only because the pure parsing layer had been kept
+provider-agnostic in Session 2 -- a design choice that turned out to pay
+for itself here.
+
+**Left unchanged, deliberately:** `AKIYESI_LLM_BACKEND` still defaults to
+`rule_based`. The full suite -- 69 tests (Session 2's 70, minus one: see
+the wiring-test-count note above) -- passes on a plain `python3 -m
+unittest discover -s tests -t . -v`.
+
+**Not yet done:** the live Anthropic API call itself, pending the
+developer's own smoke test on a machine where the SDK can be installed.
+Everything else already listed as not-yet-done in Session 1 is unchanged
+by this session.
+
+---
+
 ## Session 2 -- 20 September 2026 (Day 5 of the plan)
+
+*Superseded by Session 3 above: the developer corrected the provider
+choice from Gemini to Claude the same day, and `VertexGeminiClient` was
+replaced by `AnthropicClient`. Kept below unedited as an accurate record
+of what actually happened, not as a description of the current codebase.*
 
 **Delegated:** wiring `app/llm.py`'s `VertexGeminiClient` into a real Vertex
 AI implementation, on request ("let's start working on building in the

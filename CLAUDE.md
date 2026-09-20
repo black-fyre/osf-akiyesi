@@ -186,8 +186,8 @@ Optimise for demo reliability over elegance.
 
 - Python, FastAPI, Cloud Run
 - Firestore: reports, clusters, audit log, community config
-- Gemini via Vertex AI. Every prompt in a versioned `prompts/` directory, never
-  inline. Prompts as files is also evidence for the AI usage score.
+- Claude via the Anthropic API. Every prompt in a versioned `prompts/` directory,
+  never inline. Prompts as files is also evidence for the AI usage score.
 - Africa's Talking or Termii for SMS
 - Desk UI: server-side templates. No React.
 

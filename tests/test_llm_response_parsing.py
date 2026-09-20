@@ -1,23 +1,21 @@
-"""Tests for app/llm.py's Gemini response-parsing layer.
+"""Tests for app/llm.py's model-response-parsing layer.
 
-VertexGeminiClient's three public methods each do two things: call Vertex
-AI (app/llm.py:VertexGeminiClient._generate_json -- NOT covered here, see
-below), then hand the raw JSON to one of parse_redaction_response /
-parse_classification_response / parse_extraction_response. Those three
-functions are pure (no network, no SDK) and are what this file exercises,
-using response shapes taken straight from each prompt file's own worked
-example, plus deliberately-malformed variants a real model response could
-plausibly return.
+Every real LLMClient implementation (currently AnthropicClient; an earlier
+iteration of this module targeted Gemini via Vertex AI, see
+docs/ai-usage.md) does two things: call the model, then hand the raw JSON
+to one of parse_redaction_response / parse_classification_response /
+parse_extraction_response. Those three functions are pure (no network, no
+SDK) and provider-agnostic -- the JSON contract they validate comes from
+prompts/*.md, not from any one provider's SDK -- which is what this file
+exercises, using response shapes taken straight from each prompt file's
+own worked example, plus deliberately-malformed variants a real model
+response could plausibly return.
 
-What this file does NOT and cannot cover: an actual call to Vertex AI.
-Both sandboxes this project was built in (this one, and the developer's
-own device sandbox) return 403 from generativelanguage.googleapis.com and
-aiplatform.googleapis.com on a direct request -- there is no network path
-here to exercise VertexGeminiClient._generate_json or the constructor's
-vertexai.init() call against a real project. See docs/ai-usage.md for the
-exact hosts/status codes checked, and scripts/smoke_test_gemini.py for the
-script that verifies the live call, meant to be run on a machine with real
-GCP credentials and network access.
+What this file does NOT and cannot cover: an actual call to a model
+provider. See tests/test_llm_anthropic_client_wiring.py for coverage of
+AnthropicClient's SDK-calling code against a faked SDK, and
+docs/ai-usage.md for why the real network call has not been exercised
+from either sandbox this project was built in.
 """
 import unittest
 

@@ -1,6 +1,6 @@
 # Redaction prompt -- v1 -- en-NG
 
-Used by `app.llm.VertexGeminiClient.redact` (production). The rule-based
+Used by `app.llm.AnthropicClient.redact` (production). The rule-based
 client (`app.llm.RuleBasedClient.redact`, what this iteration actually
 runs) implements the same contract deterministically against
 `config/redaction_terms.yaml` instead of calling a model -- see

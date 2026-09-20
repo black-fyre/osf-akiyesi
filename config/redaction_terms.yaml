@@ -4,9 +4,9 @@
 # language or an identity category some other community needs to guard
 # against should not require touching the redaction code. The rule-based
 # client (app/llm.py: RuleBasedClient) matches these case-insensitively as
-# whole phrases; the Vertex/Gemini client (when configured) is instructed
-# with the same category list via prompts/redaction_v1*.md so the two stay
-# aligned.
+# whole phrases; the Claude client (app/llm.py: AnthropicClient, when
+# configured) is instructed with the same category list via
+# prompts/redaction_v1*.md so the two stay aligned.
 
 categories:
   nationality:

@@ -14,13 +14,13 @@ pyyaml>=6.0
 
 # production deployment target (CLAUDE.md "Stack") -- install these on a
 # machine with network access, then see app/main_fastapi.py and
-# app/llm.py:VertexGeminiClient / app/storage.py:FirestoreStore for the
-# documented (not yet wired-up) swap points.
+# app/llm.py:AnthropicClient / app/storage.py:FirestoreStore for the
+# documented (not yet wired-up, in main_fastapi.py's case) swap points.
 fastapi>=0.110
 uvicorn[standard]>=0.29
 pydantic>=2.6
 google-cloud-firestore>=2.16
-google-cloud-aiplatform>=1.47
+anthropic>=0.40
 africastalking>=1.2.7
 
 # dev/test convenience once network is available (the checked-in test

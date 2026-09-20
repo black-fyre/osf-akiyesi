@@ -1,39 +1,39 @@
 #!/usr/bin/env python3
-"""Smoke test for app.llm.VertexGeminiClient against the REAL Vertex AI API.
+"""Smoke test for app.llm.AnthropicClient against the REAL Anthropic API.
 
-Why this script exists: neither sandbox this project was built in (the
-cloud environment, or the developer's own device sandbox) has network
-access to generativelanguage.googleapis.com or aiplatform.googleapis.com --
-both returned 403 from a direct request in both places (see
-docs/ai-usage.md for the exact hosts/status codes). That means
-VertexGeminiClient's three public methods (redact, classify_channel,
-score_patterns) are wired up and unit-tested against a fake SDK
-(tests/test_llm_gemini_client_wiring.py) and the response-parsing logic is
-fully tested (tests/test_llm_gemini_parsing.py), but the actual network
-call has never been executed. This script is what closes that gap: run it
-yourself, on a machine with real GCP credentials and outbound network
-access, before trusting AKIYESI_LLM_BACKEND=vertex_gemini for a live demo.
+Why this script exists: the `anthropic` Python package cannot be
+pip-installed in the sandbox this project was built in -- there is no
+route to pypi.org (confirmed by direct request; see docs/ai-usage.md).
+That means AnthropicClient's three public methods (redact,
+classify_channel, score_patterns) are wired up and unit-tested against a
+fake SDK (tests/test_llm_anthropic_client_wiring.py) and the
+response-parsing logic is fully tested (tests/test_llm_response_parsing.py),
+but the actual network call has never been executed from this sandbox.
+Note this is a narrower gap than it sounds: api.anthropic.com itself IS
+reachable from here (a direct, unauthenticated request to it returns 401,
+i.e. a real, responsive endpoint) -- what's missing is only the SDK
+package and a real API key, not network access to the host. This script
+is what closes that last gap: run it yourself, on a machine where you can
+`pip install anthropic`, before trusting AKIYESI_LLM_BACKEND=
+anthropic_claude for a live demo.
 
-Setup (see README.md's "Real Gemini / Vertex AI setup" section for the
-full walkthrough):
-    1. A GCP project with the Vertex AI API enabled.
-    2. Application Default Credentials available, e.g.:
-         gcloud auth application-default login
-    3. pip install -r requirements.txt   (installs google-cloud-aiplatform)
-    4. export AKIYESI_GCP_PROJECT=<your-project-id>
-       export AKIYESI_GCP_LOCATION=us-central1        # or your region
-       export AKIYESI_GEMINI_MODEL=gemini-2.0-flash-001  # optional, this is the default
+Setup (see README.md's "Real Claude API setup" section for the full
+walkthrough):
+    1. An Anthropic API key from https://console.anthropic.com/
+    2. pip install -r requirements.txt   (installs the anthropic package)
+    3. export AKIYESI_ANTHROPIC_API_KEY=<your-api-key>
+       export AKIYESI_CLAUDE_MODEL=claude-sonnet-4-5-20250929  # optional, this is the default
 
 Run:
-    python3 scripts/smoke_test_gemini.py
+    python3 scripts/smoke_test_claude.py
 
-What it does: three real Vertex AI calls (one per prompt: redaction,
+What it does: three real Anthropic API calls (one per prompt: redaction,
 classification, extraction), each with the same input as that prompt
 file's own worked example, printing what came back so you can eyeball it
 against the worked example's expected output. It does NOT touch
-AKIYESI_LLM_BACKEND or any other app state -- it imports VertexGeminiClient
+AKIYESI_LLM_BACKEND or any other app state -- it imports AnthropicClient
 directly and calls it, the same way app/pipeline.py would if that env var
-were set to vertex_gemini.
+were set to anthropic_claude.
 """
 from __future__ import annotations
 
@@ -43,7 +43,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.llm import VertexGeminiClient  # noqa: E402
+from app.llm import AnthropicClient  # noqa: E402
 
 
 def _fail(message: str) -> None:
@@ -52,18 +52,17 @@ def _fail(message: str) -> None:
 
 
 def main() -> None:
-    project_id = os.environ.get("AKIYESI_GCP_PROJECT")
-    if not project_id:
-        _fail("AKIYESI_GCP_PROJECT is not set. Export it to your GCP project ID and re-run.")
+    api_key = os.environ.get("AKIYESI_ANTHROPIC_API_KEY", "")
+    if not api_key:
+        _fail("AKIYESI_ANTHROPIC_API_KEY is not set. Export it to your Anthropic API key and re-run.")
 
-    location = os.environ.get("AKIYESI_GCP_LOCATION", "us-central1")
-    model_name = os.environ.get("AKIYESI_GEMINI_MODEL", "gemini-2.0-flash-001")
+    model_name = os.environ.get("AKIYESI_CLAUDE_MODEL", "claude-sonnet-4-5-20250929")
 
-    print(f"Connecting to Vertex AI: project={project_id!r} location={location!r} model={model_name!r}")
+    print(f"Connecting to the Anthropic API: model={model_name!r}")
     try:
-        client = VertexGeminiClient(project_id=project_id, location=location, model_name=model_name)
+        client = AnthropicClient(api_key=api_key, model_name=model_name)
     except RuntimeError as exc:
-        _fail(f"could not construct VertexGeminiClient: {exc}")
+        _fail(f"could not construct AnthropicClient: {exc}")
         return
 
     print("\n--- 1/3: redact() -- prompts/redaction_v1.md worked example ---")

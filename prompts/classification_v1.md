@@ -1,6 +1,6 @@
 # Channel classification prompt -- v1 -- en-NG
 
-Used by `app.llm.VertexGeminiClient.classify_channel` (production). The
+Used by `app.llm.AnthropicClient.classify_channel` (production). The
 rule-based client (what this iteration runs) implements the same contract
 as a keyword-indicator check -- see `app/classifier.py`.
 
