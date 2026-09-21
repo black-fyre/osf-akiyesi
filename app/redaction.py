@@ -28,7 +28,8 @@ class Redacted:
         return len(self.categories_redacted) > 0
 
 
-def redact_report_text(raw_text: str, locale: str, config: AppConfig, llm: LLMClient) -> Redacted:
+def redact_report_text(raw_text: str, locale, config: AppConfig, llm: LLMClient) -> Redacted:
+    # `locale`: one code, or a list (detected + community) for code-switched text.
     terms = config.redaction_terms.terms_for(locale)
     result: RedactionResult = llm.redact(raw_text, terms)
     return Redacted(text=result.redacted_text, categories_redacted=result.categories_redacted)

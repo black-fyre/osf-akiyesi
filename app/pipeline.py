@@ -17,6 +17,7 @@ from app.config import AppConfig, Community
 from app.extraction import extract
 from app.hashing import hash_sender
 from app.llm import LLMClient
+from app.locale_detect import detect_locale
 from app.models import Report, utcnow
 from app.redaction import redact_report_text
 from app.storage import Store
@@ -92,10 +93,18 @@ def process_inbound(raw_payload: Dict[str, Any], config: AppConfig, llm: LLMClie
     if community is None:
         raise UnknownInboundError(f"no community configured for inbound identifier {payload.to!r}")
 
-    effective_locale = payload.locale_hint or community.locale
+    # Per-message language (app/locale_detect.py): the payload's hint, else
+    # detection from the words used, else the community default.
+    effective_locale = detect_locale(payload.text, community.locale, config, hint=payload.locale_hint)
     locale_supported = effective_locale in SUPPORTED_LOCALES
+    # Pattern matching reads the detected language plus the community's.
+    locales = [effective_locale] + ([community.locale] if community.locale != effective_locale else [])
+    # The safety layers read every language, whatever was detected. A
+    # code-switched "Ajeji kan was loitering by the gate" is detected as
+    # English, and must still lose "Ajeji" (a test caught exactly this).
+    safety_locales = config.all_locales(first=locales)
 
-    redacted = redact_report_text(payload.text, community.locale, config, llm)
+    redacted = redact_report_text(payload.text, safety_locales, config, llm)
 
     status = STATUS_STORED
     rejection_reason: Optional[str] = None
@@ -108,14 +117,14 @@ def process_inbound(raw_payload: Dict[str, Any], config: AppConfig, llm: LLMClie
             "until reviewed."
         )
 
-    channel = classify_channel(payload.to, redacted.text, community, config, llm)
+    channel = classify_channel(payload.to, redacted.text, community, config, llm, locales=safety_locales)
 
-    guard = check_named_target_accusation(redacted.text, community.locale, config)
+    guard = check_named_target_accusation(redacted.text, safety_locales, config)
     if guard.blocked and status == STATUS_STORED:
         status = STATUS_REJECTED_TARGETING
         rejection_reason = guard.reason
 
-    extraction = extract(redacted.text, community, config, llm)
+    extraction = extract(redacted.text, community, config, llm, locales=locales)
 
     report = Report(
         id=store.new_id(),

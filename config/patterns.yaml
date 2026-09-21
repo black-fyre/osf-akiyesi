@@ -55,11 +55,30 @@ patterns:
         - "unloading at night"
         - "men unloading"
         - "unloading sacks into"
+      # Yoruba, typed without tone marks (matching ignores them). None of
+      # these contain an identity word, since keywords are matched after
+      # redaction. Needs a fluent speaker's review before deployment.
       yo:
         - "n gbe apo sinu ile"
         - "won n wo ile wa"
         - "moto to ye lasan"
         - "won n yi ile ka"
+        - "won n wo ile"
+        - "n wo awon ile"
+        - "won n ka ile"
+        - "n ka awon ile"
+        - "ya aworan ile"
+        - "n ya foto ile"
+        - "gbiyanju geeti"
+        - "n wo geeti"
+        - "n fa geeti"
+        - "gun ogiri"
+        - "fo ogiri"
+        - "n gbe apo"
+        - "n ko apo"
+        - "moto kan duro"
+        - "moto kan paaki"
+        - "n rin kiri ni oru"
 
   - id: explosives_storage
     name: "Illegal explosives / hazardous material storage"
@@ -73,7 +92,13 @@ patterns:
         - "strong smell of chemicals"
         - "warehouse activity at night"
         - "unmarked containers"
-      yo: []
+      yo:
+        - "dromu kemika"
+        - "n ko dromu"
+        - "oorun kemika"
+        - "ado oloro"
+        - "ohun ibugbamu"
+        - "apoti ti ko ni ami"
 
   - id: weapon_sighting
     name: "Weapon or armed-robbery sighting"
@@ -106,9 +131,13 @@ patterns:
         - "had a gun"
         - "carrying a gun"
         - "he had a weapon"
-      # Left empty deliberately, same as explosives_storage: the Yoruba
-      # locale is a stub not yet reviewed by a fluent speaker (see
-      # README.md's "Not yet built"), and getting a weapon-related
-      # keyword list wrong in translation is a worse failure mode than
-      # leaving it unclassified for yo until a fluent speaker checks it.
-      yo: []
+      # Yoruba. Filled in for the demo build; like every yo list here it
+      # needs a fluent speaker's review before a real deployment, and a
+      # weapon list matters more than most, since it has the lowest bar.
+      yo:
+        - "ibon"
+        - "yin ibon"
+        - "gbe ada"
+        - "mu ada"
+        - "adigunjale"
+        - "awon ole"

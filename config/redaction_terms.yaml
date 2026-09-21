@@ -21,6 +21,14 @@ categories:
       - "foreigner"
       - "foreign national"
       - "immigrant"
+    # Yoruba, typed without tone marks (matching ignores them).
+    yo:
+      - "omo Ghana"
+      - "omo Kotonu"
+      - "omo Benin"
+      - "omo Togo"
+      - "omo Naijiria"
+      - "oyinbo"
 
   ethnicity_tribe:
     en-NG:
@@ -35,6 +43,19 @@ categories:
       - "Ibibio"
       - "Kanuri"
       - "Nupe"
+    # Yoruba, typed without tone marks (matching ignores them).
+    yo:
+      - "Yoruba"
+      - "Igbo"
+      - "Ibo"
+      - "Hausa"
+      - "Awusa"
+      - "Gambari"
+      - "Aboki"
+      - "Kobokobo"
+      - "Fulani"
+      - "Bororo"
+      - "Tapa"
 
   religion:
     en-NG:
@@ -45,6 +66,14 @@ categories:
       - "Catholic"
       - "traditionalist"
       - "herbalist worshipper"
+    # Yoruba, typed without tone marks (matching ignores them).
+    yo:
+      - "Musulumi"
+      - "Imale"
+      - "Onigbagbo"
+      - "Kristeni"
+      - "Alufa"
+      - "Olorisa"
 
   stranger_or_foreigner_markers:
     en-NG:
@@ -59,3 +88,15 @@ categories:
       - "looked like a Fulani herdsman"
       - "spoke with an accent"
       - "spoke a different language"
+    # Yoruba, typed without tone marks (matching ignores them).
+    yo:
+      - "ajeji"
+      - "alejo"
+      - "ki i se omo ibi"
+      - "kii se omo ibi"
+      - "ki i se omo adugbo"
+      - "kii se omo adugbo"
+      - "ara oke"
+      - "o n so ede miran"
+      - "ede miran"
+      - "oju tuntun"

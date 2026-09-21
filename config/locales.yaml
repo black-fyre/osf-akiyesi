@@ -1,0 +1,31 @@
+# Languages the pipeline reads, and how a message's language is detected
+# (app/locale_detect.py). Scalability seam #2: a language is config.
+#
+# A basic phone has no language menu, so the language is decided per
+# message: a payload hint first, then these markers, then the community's
+# default locale (communities.yaml). Detection only chooses which word
+# lists to use. Every message is also matched against its community's own
+# lists, because people switch language mid-sentence, and nothing is ever
+# dropped for being in a language the system cannot read: it is stored
+# for review instead (app/pipeline.py, needs_review_locale).
+#
+# detect.letters: letters only this language uses. One is enough.
+# detect.words: common words, written without tone marks (matching ignores
+#   them). min_distinct_words of them must appear. Chosen to avoid English
+#   words. A wrong guess only affects pattern matching: redaction and the
+#   accusation guard check every language's lists on every message.
+#
+# The Yoruba lists across config/ were written for this build and have not
+# yet been reviewed by a fluent speaker from the community. That review is
+# a deployment step, not optional polish.
+
+locales:
+  en-NG:
+    display_name: "Nigerian English"
+
+  yo:
+    display_name: "Yorùbá"
+    detect:
+      letters: ["ẹ", "ọ", "ṣ"]
+      min_distinct_words: 2
+      words: ["ni", "ti", "si", "n", "won", "awon", "mo", "ri", "ile", "oru", "lana", "okunrin", "obinrin", "kan", "je", "sugbon", "nitori", "adugbo", "opopona", "gbe", "pelu", "ati", "baba", "yen", "yii", "mi", "naa", "lati", "sinu", "nibi", "ibi", "jowo"]

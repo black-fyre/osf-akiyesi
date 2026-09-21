@@ -89,8 +89,14 @@ class PatternDefinition:
     watch_override: Optional[SpanThreshold] = None
     escalate_override: Optional[SpanThreshold] = None
 
-    def keywords_for(self, locale: str) -> List[str]:
-        return self.locale_keywords.get(locale, [])
+    def keywords_for(self, locale) -> List[str]:
+        locales = [locale] if isinstance(locale, str) else list(locale)
+        merged: List[str] = []
+        for loc in locales:
+            for kw in self.locale_keywords.get(loc, []) or []:
+                if kw not in merged:
+                    merged.append(kw)
+        return merged
 
 
 @dataclass(frozen=True)
@@ -98,23 +104,62 @@ class RedactionTerms:
     # category -> locale -> list of phrases
     categories: Dict[str, Dict[str, List[str]]]
 
-    def terms_for(self, locale: str) -> Dict[str, List[str]]:
-        return {
-            category: phrases.get(locale, [])
-            for category, phrases in self.categories.items()
-        }
+    def terms_for(self, locale) -> Dict[str, List[str]]:
+        """Phrases per category for one locale, or the union over several
+        (a list): a code-switched message is checked against every
+        language it may contain."""
+        locales = [locale] if isinstance(locale, str) else list(locale)
+        out: Dict[str, List[str]] = {}
+        for category, phrases in self.categories.items():
+            merged: List[str] = []
+            for loc in locales:
+                for phrase in phrases.get(loc, []) or []:
+                    if phrase not in merged:
+                        merged.append(phrase)
+            out[category] = merged
+        return out
 
 
 @dataclass(frozen=True)
 class AccusationTerms:
     epithets: Dict[str, List[str]]
     mob_language: Dict[str, List[str]]
+    # "<Name> is a thief" (en-NG: is/are) and "<Name> je ole" (yo: je).
+    copulas: Dict[str, List[str]] = field(default_factory=dict)
+    # "ole ni Bello" (yo): the accusation comes before the name.
+    inverted_copulas: Dict[str, List[str]] = field(default_factory=dict)
 
-    def epithets_for(self, locale: str) -> List[str]:
-        return self.epithets.get(locale, [])
+    @staticmethod
+    def _merged(table: Dict[str, List[str]], locale) -> List[str]:
+        locales = [locale] if isinstance(locale, str) else list(locale)
+        out: List[str] = []
+        for loc in locales:
+            for item in table.get(loc, []) or []:
+                if item not in out:
+                    out.append(item)
+        return out
 
-    def mob_language_for(self, locale: str) -> List[str]:
-        return self.mob_language.get(locale, [])
+    def epithets_for(self, locale) -> List[str]:
+        return self._merged(self.epithets, locale)
+
+    def mob_language_for(self, locale) -> List[str]:
+        return self._merged(self.mob_language, locale)
+
+    def copulas_for(self, locale) -> List[str]:
+        return self._merged(self.copulas, locale) or ["is", "are"]
+
+    def inverted_copulas_for(self, locale) -> List[str]:
+        return self._merged(self.inverted_copulas, locale)
+
+
+@dataclass(frozen=True)
+class LocaleMarkers:
+    # Letters only this language uses, and common words of it (folded:
+    # lower case, tone marks removed). See config/locales.yaml.
+    letters: frozenset
+    words: frozenset
+    min_distinct_words: int
+    display_name: str = ""
 
 
 @dataclass(frozen=True)
@@ -124,6 +169,26 @@ class AppConfig:
     pattern_min_score: int
     redaction_terms: RedactionTerms
     accusation_terms: AccusationTerms
+    # Optional (config/locales.yaml). Empty means every message is read in
+    # its community's default locale, as before.
+    locale_markers: Dict[str, LocaleMarkers] = field(default_factory=dict)
+    locale_names: Dict[str, str] = field(default_factory=dict)
+
+    def all_locales(self, first=()) -> List[str]:
+        """Every locale any config file knows, with `first` leading. The
+        safety layers (redaction, accusation guard, protected-channel
+        fallback) check every message against all of them, so a wrong
+        language guess can never let identity content or an accusation
+        through. It can only over-redact, which is the safe direction."""
+        out: List[str] = [loc for loc in first if loc]
+        pools = [self.locale_names.keys(), (c.locale for c in self.communities.values())]
+        pools += [phrases.keys() for phrases in self.redaction_terms.categories.values()]
+        pools += [self.accusation_terms.epithets.keys(), self.accusation_terms.mob_language.keys()]
+        for pool in pools:
+            for loc in pool:
+                if loc not in out:
+                    out.append(loc)
+        return out
 
     def community_by_id(self, community_id: str) -> Optional[Community]:
         return self.communities.get(community_id)
@@ -234,7 +299,27 @@ def load_config(config_dir: Optional[Path] = None) -> AppConfig:
     accusation_terms = AccusationTerms(
         epithets=accusation_raw.get("epithets", {}),
         mob_language=accusation_raw.get("mob_language", {}),
+        copulas=accusation_raw.get("copulas", {}),
+        inverted_copulas=accusation_raw.get("inverted_copulas", {}),
     )
+
+    locale_markers: Dict[str, LocaleMarkers] = {}
+    locale_names: Dict[str, str] = {}
+    locales_path = config_dir / "locales.yaml"
+    if locales_path.exists():
+        from app.textnorm import fold
+
+        for code, row in (_load_yaml(locales_path).get("locales") or {}).items():
+            row = row or {}
+            locale_names[code] = row.get("display_name", code)
+            detect = row.get("detect")
+            if detect:
+                locale_markers[code] = LocaleMarkers(
+                    letters=frozenset(str(c).lower() for c in detect.get("letters", [])),
+                    words=frozenset(fold(str(w)) for w in detect.get("words", [])),
+                    min_distinct_words=int(detect.get("min_distinct_words", 3)),
+                    display_name=locale_names[code],
+                )
 
     return AppConfig(
         communities=communities,
@@ -242,6 +327,8 @@ def load_config(config_dir: Optional[Path] = None) -> AppConfig:
         pattern_min_score=int(patterns_raw.get("min_score", 1)),
         redaction_terms=redaction_terms,
         accusation_terms=accusation_terms,
+        locale_markers=locale_markers,
+        locale_names=locale_names,
     )
 
 

@@ -41,6 +41,27 @@ _PROTECTED_INDICATOR_TERMS_EN = [
     "abusing her position",
 ]
 
+# Yoruba, typed without tone marks (matching ignores them either way).
+# "maigadi" is the Hausa loanword for gateman that Yoruba speakers use.
+# Needs a fluent speaker's review before a real deployment.
+_PROTECTED_INDICATOR_TERMS_YO = [
+    "maigadi",
+    "olusona",
+    "oluso geeti",
+    "omo amotekun",
+    "awon amotekun",
+    "abetele",
+    "gba owo tipatipa",
+    "n gba owo lowo",
+    "omo igbimo",
+    "alaga onile",
+]
+
+_PROTECTED_INDICATOR_TERMS = {
+    "en-NG": _PROTECTED_INDICATOR_TERMS_EN,
+    "yo": _PROTECTED_INDICATOR_TERMS_YO,
+}
+
 
 def classify_channel(
     inbound_identifier: str,
@@ -48,15 +69,21 @@ def classify_channel(
     community: Community,
     config: AppConfig,
     llm: LLMClient,
+    locales=None,
 ) -> str:
     channel_from_inbound = config.channel_for_inbound(community, inbound_identifier)
     if channel_from_inbound == "protected":
         return "protected"
 
-    # Content fallback only applies to English for now (locale stub only
-    # covers en-NG's indicator list); non-English falls back to the
-    # inbound-identifier signal alone.
-    if community.locale == "en-NG":
-        return llm.classify_channel(redacted_text, _PROTECTED_INDICATOR_TERMS_EN)
+    # Content fallback, in every language the message may be in (its
+    # detected locale plus the community's). A locale with no indicator
+    # list falls back to the inbound-identifier signal alone.
+    terms = []
+    for loc in locales or [community.locale]:
+        for term in _PROTECTED_INDICATOR_TERMS.get(loc, []):
+            if term not in terms:
+                terms.append(term)
+    if terms:
+        return llm.classify_channel(redacted_text, terms)
 
     return "normal"

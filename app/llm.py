@@ -49,6 +49,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Protocol
 
+from app.textnorm import fold, replace_phrase
+
 PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
 
 # The only four category keys any redact() implementation may emit --
@@ -100,17 +102,17 @@ class RuleBasedClient:
         categories_hit: List[str] = []
         for category, phrases in terms.items():
             category_matched = False
+            placeholder = "[person]" if category == "stranger_or_foreigner_markers" else "[REDACTED]"
             # Longest phrases first so "Fulani herdsman" matches before "Fulani".
             for phrase in sorted(phrases, key=len, reverse=True):
-                # \b...\b: a bare word-boundary match, not substring search --
+                # Whole-phrase (word-boundary) match, not substring search --
                 # without it, a short entry like "Tiv" false-positive-matches
                 # inside "operatives" or "relatives". Caught during seed
                 # replay (see docs/ai-usage.md) before this shipped.
-                pattern = re.compile(r"\b" + re.escape(phrase) + r"\b", re.IGNORECASE)
-                if pattern.search(redacted):
-                    placeholder = "[person]" if category == "stranger_or_foreigner_markers" else "[REDACTED]"
-                    redacted = pattern.sub(placeholder, redacted)
-                    category_matched = True
+                # Tone marks are ignored (app/textnorm.py), so a Yoruba
+                # word matches whether or not the sender typed its marks.
+                redacted, hit = replace_phrase(redacted, phrase, placeholder)
+                category_matched = category_matched or hit
             if category_matched:
                 categories_hit.append(category)
         # Collapse doubled placeholders / whitespace left behind by
@@ -121,19 +123,19 @@ class RuleBasedClient:
         return RedactionResult(redacted_text=redacted, categories_redacted=categories_hit)
 
     def classify_channel(self, text: str, protected_indicator_terms: List[str]) -> str:
-        lowered = text.lower()
+        folded = fold(text)
         for term in protected_indicator_terms:
-            if term.lower() in lowered:
+            if fold(term) in folded:
                 return "protected"
         return "normal"
 
     def score_patterns(self, text: str, pattern_keywords: Dict[str, List[str]]) -> Dict[str, int]:
-        lowered = text.lower()
+        folded = fold(text)
         scores: Dict[str, int] = {}
         for pattern_id, keywords in pattern_keywords.items():
             score = 0
             for kw in keywords:
-                if kw.lower() in lowered:
+                if fold(kw) in folded:
                     score += 1
             scores[pattern_id] = score
         return scores

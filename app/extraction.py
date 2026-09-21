@@ -34,9 +34,12 @@ class Extraction:
     time_of_day: Optional[str]
 
 
-def extract(redacted_text: str, community: Community, config: AppConfig, llm: LLMClient) -> Extraction:
+def extract(redacted_text: str, community: Community, config: AppConfig, llm: LLMClient, locales=None) -> Extraction:
+    # `locales`: the message's detected locale plus its community's, so a
+    # Yoruba (or code-switched) message is scored against both word lists.
+    locales = locales or [community.locale]
     pattern_keywords = {
-        p.id: p.keywords_for(community.locale) for p in config.patterns
+        p.id: p.keywords_for(locales) for p in config.patterns
     }
     scores = llm.score_patterns(redacted_text, pattern_keywords)
     best_pattern, best_score = UNCLASSIFIED, 0
