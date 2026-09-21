@@ -7,6 +7,197 @@ CLAUDE.md's AI-coding-usage section. Newest session first.
 
 ---
 
+## Session 7 -- 21 September 2026 (submission day, later)
+
+**Delegated:** two requests from the author, in this order. First, a simpler
+sister to the demo console, "supporting a narrative rather than enforcing
+one": ready-made messages for every scenario, one click each, with
+presenter hints, landing in the app itself. Second, mid-build, "let's build
+support for Yoruba as well."
+
+**Presenter remote (`/demo/remote`, `app/templates/demo_remote.html`).** A
+list of the scripted scenes as one-click messages, a "send next in story"
+button (key `N`), a free-text composer, talking points per scene, and a
+crib sheet whose numbers are read from config (`demo.presenter_numbers`),
+so the crib cannot disagree with the rules. It sends through the console's
+own `/demo/send`, so it adds no rules. Each send is announced on a
+`BroadcastChannel`: the console draws the message's trace as if it had been
+typed on its phone, and the desk, audit and inbox pages reload. Three Q&A
+extras (one loud voice, a burst in one evening, everyday noise) carry a
+declared outcome and are replayed by `tests/test_demo_console.py`, the same
+way the scenes are, so a talking point such as "fifteen texts from one
+phone are one person" cannot quietly stop being true.
+
+**Yoruba.** Before this session the `yo` locale was accepted as a payload
+hint and nothing else: redaction, pattern matching and the accusation guard
+all used the community's English lists, so a Yoruba SMS was filed as
+noise. Now:
+
+- `app/locale_detect.py` detects each message's language from
+  `config/locales.yaml` (Yoruba under-dot letters, or two distinct common
+  Yoruba words), after an explicit hint and before the community default.
+- `app/textnorm.py` makes every rule-based match ignore tone marks, so
+  "Àjèjì" and "Ajeji" are the same word, and replaces the matched span in
+  the original text, leaving the rest of the sender's spelling untouched.
+- Yoruba lists in `redaction_terms.yaml`, `patterns.yaml` (all three
+  patterns), `accusation_terms.yaml` (epithets, mob language, and the
+  "Ole ni Bello" word order via `inverted_copulas`), and the classifier's
+  protected-channel indicators.
+- A demo scene, "Same rules, in Yorùbá", and a Yorùbá accusation Q&A extra.
+
+**Where the agent was wrong, and how it was caught.** The first version
+matched each message against the detected language plus the community's.
+A throwaway replay of eleven hand-written messages, run before any tests
+were written for the feature, showed two failures in the safety layers:
+
+1. "Ajeji kan was loitering by the gate at night." was detected as English
+   (too few Yoruba words), so the Yoruba stranger word "Ajeji" was **not
+   redacted** and would have reached the pattern store.
+2. "Baba Bello je ole, e lu u." (a named accusation plus a call to beat
+   him) was too short to be detected as Yoruba, so the Yoruba accusation
+   list never ran and the message was **stored**, not refused.
+
+The fix was a design change, not a word-list tweak: the safety layers
+(redaction, accusation guard, protected-channel fallback) now check every
+language's lists on every message (`AppConfig.all_locales`), whatever was
+detected. A wrong guess can only over-redact, which is the safe direction.
+Detection now only steers pattern matching. Both messages are pinned in
+`tests/test_yoruba.py`. A third near-miss was designed out before it
+shipped: "ni" also means "at", so "awon ole ni Adeoye street" (robbers at
+Adeoye street) would have matched a loose "<epithet> ni <Name>" rule. The
+inverted form now requires the epithet to open the clause, and a test
+proves the observation is stored, not refused.
+
+**Rejected:** changing pattern scoring from substring to whole-word
+matching at the same time. It would have been more correct for new Yoruba
+keywords, but it changes English scoring the suite depends on ("gun" in
+"gunshots"). Instead the one risky Yoruba keyword ("ada", cutlass, which
+also sits inside other words) became the phrases "gbe ada" and "mu ada".
+
+**Honest limits.** Every Yoruba list here was written for this build and
+has not been reviewed by a fluent speaker from the community. That review
+is a deployment step, and `config/locales.yaml` says so. The Claude backend
+needs no Yoruba prompt to read Yoruba; it is given the merged keyword lists
+for pattern scoring.
+
+**Verified:** 135 tests pass (`python3 -m unittest discover -s tests -t .`),
+including 18 new Yoruba tests and 6 new tests for the remote. The remote and the
+live hand-off were driven in a headless browser: the story sent by keyboard
+from the remote, the console drew each message's trace (including "Read as
+Yorùbá"), and an open desk page reloaded to the new sender count, with no
+page errors and no horizontal scroll at phone width.
+
+---
+
+## Session 6 -- 21 September 2026 (submission day)
+
+**Delegated:** a browser front end for pushing demo messages through the
+pipeline, on request ("a manual post endpoint doesn't seem very demo
+friendly"), and a scripted demo built on it. The demo plan and the choice of
+what to show were discussed with the author; the scenes below are the result.
+
+**What was built:** `app/demo.py` and `app/templates/demo.html`, served at
+`/demo`: a phone-shaped composer, a step-by-step trace of what the pipeline did
+to each message, the committee's signal board, and a side drawer that opens
+the real desk pages. Seven scenes are declared as data in `app/demo.py`, each
+with the outcome it is supposed to produce.
+
+**Decisions worth reviewing:**
+- The console adds no rules. Messages go through `ingest.receive_webhook`, and
+  the bars on the board come from a new `clustering.resolve_thresholds`, which
+  `compute_clusters` now also uses. That is a pure extraction with identical
+  behaviour, and the existing tests were left unchanged and still pass.
+- Protected-channel text is never returned by `/demo/state` or `/demo/send`,
+  including for a message that was rerouted to the protected channel by the
+  content classifier. A test asserts it against the HTTP responses.
+- Reset wipes every table, so the routes exist only in demo mode
+  (`AppContext(demo_mode=True)`, set by `python3 -m app.server`; off by default
+  for anything else, and `AKIYESI_DEMO_MODE=0` turns it off there too). A test
+  asserts every `/demo` route is 404 with it off and that no data is touched.
+- Messages can be backdated through the payload's existing optional `date`, so
+  a three-day window fits into a few minutes. The page says so on screen.
+
+**Verified:** 26 new tests in `tests/test_demo_console.py`, including one that
+replays every scene through the real pipeline and checks its declared outcome,
+and one that walks scene 1 sender by sender through
+below-threshold, watch and ready. The full suite is 111 tests and passes on
+Python 3.10 (the author's machine) and 3.11. The server was also started on
+the author's machine and the console's endpoints exercised with curl.
+
+**What running it in a browser caught, and the unit tests did not:** a
+headless Chromium walk-through of all seven scenes, the drawer, escalation from
+the drawer, reset and Auto mode found four problems, all fixed. The profiling
+guard banner showed on a one-report cluster that had not met its threshold yet
+(100% of one report), which read as a false alarm. Esc did not close the drawer
+once focus was inside the desk page in it. Progress read "4 of 3 days" and "1
+days". The first version of the layout pushed the phone and the board below the
+fold once a scene caption appeared.
+
+**Not done:** the page's JavaScript has no automated tests. The browser
+walk-throughs were run by hand with throwaway scripts that are not in the repo.
+The scene messages are synthetic and were written to match the keyword lists
+in `config/patterns.yaml`, so they show the pipeline working, not how well
+keyword matching generalises to real messages.
+
+---
+
+## Session 5 -- 20 September 2026 (Day 5 of the plan)
+
+**Delegated:** fixing a privacy gap in the durable inbound log, on request
+("fix the code"), after it surfaced while fact-checking the rewritten
+written summary against the code.
+
+**How it was found, and where the agent was wrong:** the summary said
+reports are stored as redacted text with a hashed sender and no phone
+number. Before leaving that sentence in, the claim was checked against the
+code path instead of against the README, and it did not hold.
+`app/ingest.py` (Session 1) logs every raw webhook payload to `inbound_log`
+so a dropped message can be retried, and nothing ever removed it: the
+sender's phone number and the original, unredacted message text stayed in
+the database permanently. That contradicted the README ("only the redacted
+text is ever persisted"), the deck ("phone numbers are hashed, never stored
+in plain text"), design rule #7, and a comment in
+`tests/test_redaction.py` ("the raw text is never written to storage").
+Session 1 wrote both the logging and the claims, and no test connected
+them: the "identity text never reaches the pattern store" test only looked
+at the `reports` table, and the raw text was in a different table. The
+first draft of the summary sentence in this session ("never stored beside
+report text") was also wrong until it was checked. It was caught by
+reading the code, not by a test.
+
+**What was changed:** `app/ingest.py` now replaces the phone number with its
+salted hash before a payload is logged or processed, so the number is never
+written to storage. `app/storage.py`'s `mark_inbound_status` replaces the
+payload with a stub in the same UPDATE that marks a row `processed`, so the
+original text is kept only while a message is waiting to be retried.
+`app/pipeline.py`'s `parse_payload` accepts the hashed form (retried
+payloads arrive already hashed) and its missing-field error no longer echoes
+the whole payload, which had been copied into `inbound_log.error`. This is
+small on purpose: field names and schema are unchanged, so no migration is
+needed and the retry behaviour is untouched.
+
+**Verified, not just asserted:** `tests/test_inbound_log_privacy.py` adds 5
+tests. Run against the previous code (`git archive HEAD` into a scratch
+directory), 4 of the 5 fail, and a direct check confirmed the old code left
+both the number and the original text in the database, so the tests are
+testing the real gap. On the fixed code the full suite is 85 tests (up from
+80) and passes. The real server was also run end to end against a scratch
+database: one report through `/simulate/inbound` and one message to an
+unknown number through `/webhook/sms`, then the SQLite file inspected
+directly. The processed row's payload was scrubbed, the unprocessed row kept
+its text but held only the sender hash, no phone number appeared anywhere
+in the file, and the desk still rendered.
+
+**Not yet done:** a message that can never be processed (for example one sent
+to an unconfigured number) stays in the retry log with its original text,
+though no phone number, until it is processed; a production build would
+need a retention limit on failed rows. The LLM response-parsing errors in
+`app/llm.py` echo the model's JSON, which could carry message text into a
+failed row's `error` column; not changed here. A local `data/akiyesi.db`
+created before this fix (gitignored) may still hold old raw rows.
+
+---
+
 ## Session 4 -- 20 September 2026 (Day 5 of the plan)
 
 **Delegated:** a new escalation pathway for "high-signal" reports (the

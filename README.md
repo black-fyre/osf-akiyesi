@@ -36,7 +36,11 @@ briefs, and a profiling guard, are built and tested:
    (`POST /simulate/inbound`, identical handling). A dropped/crashed
    webhook is durably logged before processing starts and can be retried
    (`POST /ingest/retry` or `app.ingest.retry_pending`) without duplicating
-   an already-stored report.
+   an already-stored report. The log holds as little as a retry needs: the
+   sender's phone number is replaced by its salted hash before anything is
+   written, and the original message text is scrubbed the moment a message
+   is processed (it is kept only while a message is still waiting to be
+   retried). See `tests/test_inbound_log_privacy.py`.
 2. **Redaction** -- `app/redaction.py`, config-driven off
    `config/redaction_terms.yaml`. Strips nationality, ethnicity/tribe,
    religion, and stranger-or-foreigner markers *before* anything
@@ -88,9 +92,10 @@ ready FastAPI adapter over the same business logic). Full explanation in
 
 ### Not yet built (see `CLAUDE.md`'s Day 2-5 plan and cut order)
 
-Voice intake/transcription, a second locale beyond the Yoruba prompt stub,
-real SMS-provider webhook signature verification, and Cloud Run/Terraform
-deployment config.
+Voice intake/transcription, a fluent speaker's review of the Yoruba word
+lists (Yoruba is read end to end, see below, but the lists were written for
+this build), real SMS-provider webhook signature verification, and Cloud
+Run/Terraform deployment config.
 
 `app/llm.py`'s `AnthropicClient` is now a real implementation (not a
 stub) -- see the next section for what "real" means here and what still
@@ -172,7 +177,58 @@ curl -s -X POST http://127.0.0.1:8000/simulate/inbound \
 # then open http://127.0.0.1:8000/desk?community=oke-ado-phase2
 ```
 
-Run the test suite (69 tests, covers every item in CLAUDE.md's "Tests that
+## Demo console
+
+`python3 -m app.server` also serves a demo console at
+http://127.0.0.1:8000/demo. It replaces hand-written curl requests with a
+phone-shaped composer: pick a resident, pick the report line or the SAFE
+line, type a message, and watch it move through the pipeline (identity
+stripped, accusation check, channel, pattern, corroboration) while the
+committee's signal board updates beside it. Seven scripted scenes play the
+whole story, step by step (Space sends the next message) or on their own
+(Auto). The desk, referral brief, protected inbox and audit log open in a
+side drawer as the real pages, so escalating a cluster in the console writes
+the same audit entry the desk does.
+
+What is specific to a demo, and stated on screen: the residents and their
+numbers are fictional, and messages can be backdated (the payload's optional
+`date`) so a three-day corroboration window fits into a few minutes. The
+console adds no rules of its own. Messages go through `ingest.receive_webhook`,
+the function the real webhook calls, and the bars are drawn from
+`clustering.resolve_thresholds`, the function the desk uses. Protected-channel
+text is never returned by the console's endpoints.
+
+### Presenter remote
+
+http://127.0.0.1:8000/demo/remote is the console's simpler sister, for
+talking over the main screen rather than being driven by it. Every scenario
+is a one-click message (`N` sends the next one in the story), with talking
+points per scene, a crib sheet whose numbers come from config, and a
+free-text composer. Open the console on the projector with the remote's
+"Main screen" button and keep the remote on your own screen: each message
+lands on the console, trace and all, and any open desk page reloads.
+
+### Yoruba
+
+Messages are read in Yoruba as well as Nigerian English, with or without
+tone marks. The language is detected per message (`config/locales.yaml`,
+`app/locale_detect.py`), since a basic phone has no language menu, and it
+chooses which pattern keywords apply. Redaction and the accusation guard
+check every language on every message regardless, so a mixed-language
+"Ajeji kan was loitering by the gate" still loses "Ajeji". The Yoruba lists
+in `config/` need a fluent speaker's review before a real deployment.
+
+`Reset demo` wipes every table so a run can be replayed from a clean slate.
+Because of that the console is only served when demo mode is on. It is on when
+you start the server with `python3 -m app.server`, and off in any embedded use
+(`AppContext` defaults to off). Set `AKIYESI_DEMO_MODE=0` to switch it off for
+the server as well. With it off, every `/demo` route returns 404.
+
+The scenes live in `app/demo.py` as data, each with the outcome it is meant to
+produce, and `tests/test_demo_console.py` replays every scene through the real
+pipeline and checks that outcome, so the script cannot drift from the rules.
+
+Run the test suite (111 tests, covers every item in CLAUDE.md's "Tests that
 must pass" list, plus the LLM response-parsing and Claude SDK-wiring tests
 described above):
 
@@ -209,13 +265,14 @@ app/
   audit.py, referral.py   audit log entries, referral-brief generation
   pipeline.py, ingest.py  orchestration + durable, retryable webhook intake
   server.py              the desk UI + ingest HTTP server (stdlib http.server) -- what's actually tested
+  demo.py                demo console support: scripted scenes (as data), message send with pipeline trace, signal-board state, reset
   main_fastapi.py        untested reference FastAPI adapter for Cloud Run deployment
   templates/             server-side Jinja2 templates for the desk UI
 config/                 communities, thresholds, patterns, redaction terms, accusation terms -- all data, no code
 prompts/                versioned LLM prompts (redaction, classification, extraction; en-NG + yo stub)
 seed/                   generate_seed.py, reports.json, bodija_scale_replay.json, replay.py
 scripts/smoke_test_claude.py   run this yourself against the real Anthropic API before trusting that backend for a demo
-tests/                  69 tests, one file per component, covering every CLAUDE.md-required test
+tests/                  111 tests, one file per component, covering every CLAUDE.md-required test
 docs/ai-usage.md         AI-usage log (what was delegated, what was rejected, a bug a test caught)
 ```
 
