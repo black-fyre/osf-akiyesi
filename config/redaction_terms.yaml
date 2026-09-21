@@ -29,6 +29,18 @@ categories:
       - "omo Togo"
       - "omo Naijiria"
       - "oyinbo"
+    # Kenya (kawangware-nairobi). English and common Swahili/Sheng forms.
+    # Needs review by residents of the community before deployment.
+    en-KE:
+      - "Kenyan"
+      - "Ugandan"
+      - "Tanzanian"
+      - "Ethiopian"
+      - "South Sudanese"
+      - "Congolese"
+      - "Rwandan"
+      - "Burundian"
+      - "refugee"
 
   ethnicity_tribe:
     en-NG:
@@ -56,6 +68,19 @@ categories:
       - "Fulani"
       - "Bororo"
       - "Tapa"
+    # Kenya (kawangware-nairobi). English and common Swahili/Sheng forms.
+    # Needs review by residents of the community before deployment.
+    en-KE:
+      - "Kikuyu"
+      - "Luo"
+      - "Luhya"
+      - "Kalenjin"
+      - "Kamba"
+      - "Kisii"
+      - "Maasai"
+      - "Turkana"
+      - "Mijikenda"
+      - "Somali"
 
   religion:
     en-NG:
@@ -74,6 +99,13 @@ categories:
       - "Kristeni"
       - "Alufa"
       - "Olorisa"
+    # Kenya (kawangware-nairobi). English and common Swahili/Sheng forms.
+    # Needs review by residents of the community before deployment.
+    en-KE:
+      - "Hindu"
+      - "Akorino"
+      - "Mwislamu"
+      - "Mkristo"
 
   stranger_or_foreigner_markers:
     en-NG:
@@ -100,3 +132,11 @@ categories:
       - "o n so ede miran"
       - "ede miran"
       - "oju tuntun"
+    # Kenya (kawangware-nairobi). English and common Swahili/Sheng forms.
+    # Needs review by residents of the community before deployment.
+    en-KE:
+      - "mgeni"
+      - "mtu wa nje"
+      - "not from this estate"
+      - "not from this plot"
+      - "not from around here"

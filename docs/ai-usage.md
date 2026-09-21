@@ -7,6 +7,70 @@ CLAUDE.md's AI-coding-usage section. Newest session first.
 
 ---
 
+## Session 11 -- 21 September 2026 (submission day, last hours)
+
+**Asked:** add a community in Nairobi, then extend the seed data to cover it.
+
+**Changed, all config and seed data, no code:**
+
+1. **`config/communities.yaml`**: a `kawangware-nairobi` row with its own
+   inbound pair. Its locale is `en-NG` on purpose. Only `en-NG` and `yo`
+   have pattern keywords, and a community on an `en-KE` locale with no
+   lists would never cluster anything, with no error. A comment on the row
+   says a real Kenyan English or Swahili locale is its own config addition.
+2. **`config/redaction_terms.yaml`**: an `en-KE` list in every category:
+   Kenyan ethnic groups (Kikuyu, Luo, Luhya, Kalenjin and others),
+   neighbouring nationalities and "refugee", religion terms, and stranger
+   wording including the Swahili "mgeni" and "mtu wa nje". The pipeline
+   checks every locale's lists on every message (`config.all_locales`), so
+   these apply to a community reading in `en-NG`.
+3. **`config/accusation_terms.yaml`**: Swahili epithets ("mwizi",
+   "mchawi", "jambazi") and mob language ("tumchome", "tumpige").
+4. **`seed/generate_seed.py`**: a Nairobi scenario, 15 reports, taking
+   `seed/reports.json` from 60 to 75. A burglary-casing watch of 4 senders
+   with 2 of its 5 reports redacted (40%, under the profiling guard), which
+   shows the watch tier neither Ibadan cluster reaches; matatu, water and
+   power noise; two Swahili-epithet reports naming a neighbour; three
+   protected reports about an askari, a Nyumba Kumi elder and a police
+   officer. Nyumba Kumi is Kenya's government-backed community policing
+   scheme, the same government link Amotekun is in the Ibadan story.
+
+**Where the agent's first instinct was wrong, and how it was caught.** The
+obvious move was to write the Nairobi reports and regenerate. Before
+writing any, the agent put three Kenyan profiling-shaped reports through
+`redact_report_text`. "Kikuyu", "Luo" and "not from this estate" came back
+untouched; only "stranger" was caught. Every identity list had been written
+for Nigeria, so a new country's reports would have carried ethnic labels
+into the pattern store, which the first required test forbids, while the
+suite stayed green because no test uses a Kenyan term. The seed would have
+looked right and been wrong. The word lists were added first, then the
+seed.
+
+**A second, smaller catch on replay.** One follow-up read "gate-checking
+along Lane 4". The keyword is the phrase "checking gates", so the report
+scored 0 and was filed as unclassified instead of joining the cluster.
+Same class of seed-text vs keyword mismatch as "drums were being
+offloaded" in Session 1. Reworded; the cluster's redacted share moved from
+50% to 40%, and the generator's comments were corrected to match.
+
+**Rejected by the user:** a regression test for the Kenyan terms was
+written and passed, then removed at the user's request, because it would
+have changed the 165-test count already quoted across the submission docs
+hours before the deadline. The replay check below stands in for it.
+
+**Verified:** `seed/replay.py` run before and after with the output
+diffed. Oke-Ado and Bodija results are identical; the only change is the
+new Nairobi section (4-sender watch at 40% redacted, 2 reports rejected for
+targeting, 3 protected items ready). The stored Nairobi texts were printed
+and read: "A [REDACTED] guy was photographing houses...", "A [person] who
+is [person] was loitering...". Full suite: 165 tests, passing.
+
+**Not done:** the Kenyan lists were written by the agent, not a Kenyan
+speaker, and need review by residents before deployment, as the Yoruba
+lists do. No Kenyan pattern keywords or `en-KE` locale detection.
+
+---
+
 ## Session 10 -- 21 September 2026 (submission day, late night)
 
 **Asked:** treat the Claude path as the first-class one: walk the app, fix

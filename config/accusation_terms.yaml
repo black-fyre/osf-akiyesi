@@ -39,6 +39,12 @@ epithets:
     - "omo egbe okunkun"
     - "oloogun owo"
     - "eniyan buruku"
+  # Kenya (kawangware-nairobi): Swahili epithets heard in Nairobi. Needs
+  # review by residents of the community before deployment.
+  en-KE:
+    - "mwizi"
+    - "mchawi"
+    - "jambazi"
 
 mob_language:
   en-NG:
@@ -62,6 +68,12 @@ mob_language:
     - "e le kuro"
     - "ki a lu u"
     - "e ba a wi"
+  en-KE:
+    - "mob justice"
+    - "tumchome"
+    - "tumpige"
+    - "burn him"
+    - "lynch him"
 
 # How an accusation is phrased around a name. "<Name> is a thief" and
 # "<Name> je ole" put the name first; "ole ni Bello" puts the accusation

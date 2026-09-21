@@ -225,7 +225,7 @@ described above):
 python3 -m unittest discover -s tests -t . -v
 ```
 
-Replay the seed dataset (60 reports across six weeks, two communities --
+Replay the seed dataset (75 reports across six weeks, three communities in Ibadan and Nairobi --
 see `seed/generate_seed.py`'s module docstring for exactly what scenario
 each report is there to demonstrate) through the real pipeline and print a
 per-cluster summary:

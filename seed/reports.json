@@ -21,11 +21,25 @@
     "date": "2026-01-07T21:00:00+00:00"
   },
   {
+    "id": "nairobi-noise-1",
+    "to": "40404*REPORT-KAWANGWARE",
+    "from": "+25471120001",
+    "text": "Matatu hooting at the stage goes on past midnight, nobody can sleep.",
+    "date": "2026-01-07T21:00:00+00:00"
+  },
+  {
     "id": "okeado-noise-1",
     "to": "40404*REPORT-OKEADO2",
     "from": "+23480130001",
     "text": "Someone's goat keeps escaping and eating flowers on our street, please can the owner fence it.",
     "date": "2026-01-08T21:00:00+00:00"
+  },
+  {
+    "id": "nairobi-casing-1",
+    "to": "40404*REPORT-KAWANGWARE",
+    "from": "+25471110001",
+    "text": "Two men were checking gates along Lane 4 after 11pm, going plot by plot.",
+    "date": "2026-01-08T22:00:00+00:00"
   },
   {
     "id": "okeado-clean-2",
@@ -70,6 +84,13 @@
     "date": "2026-01-12T21:00:00+00:00"
   },
   {
+    "id": "nairobi-protected-1",
+    "to": "40404*SAFE-KAWANGWARE",
+    "from": "+25471140001",
+    "text": "The night askari at the main gate takes money to let cars in without signing the book.",
+    "date": "2026-01-12T21:00:00+00:00"
+  },
+  {
     "id": "bodija-noise-7",
     "to": "40404*REPORT-BODIJA9",
     "from": "+23480170007",
@@ -77,10 +98,24 @@
     "date": "2026-01-13T21:00:00+00:00"
   },
   {
+    "id": "nairobi-casing-2",
+    "to": "40404*REPORT-KAWANGWARE",
+    "from": "+25471110002",
+    "text": "A Kikuyu guy was photographing houses near the chief's camp from a parked car.",
+    "date": "2026-01-13T22:00:00+00:00"
+  },
+  {
     "id": "okeado-noise-2",
     "to": "40404*REPORT-OKEADO2",
     "from": "+23480130002",
     "text": "Loud music from a party went on till 1am again, residents are complaining.",
+    "date": "2026-01-14T21:00:00+00:00"
+  },
+  {
+    "id": "nairobi-noise-2",
+    "to": "40404*REPORT-KAWANGWARE",
+    "from": "+25471120002",
+    "text": "No water from the county line for four days, the tanks are empty.",
     "date": "2026-01-14T21:00:00+00:00"
   },
   {
@@ -119,6 +154,20 @@
     "date": "2026-01-17T21:00:00+00:00"
   },
   {
+    "id": "nairobi-adversarial-1",
+    "to": "40404*REPORT-KAWANGWARE",
+    "from": "+25471130001",
+    "text": "Otieno Ouma is a mwizi, everyone watch your phones around him.",
+    "date": "2026-01-17T21:00:00+00:00"
+  },
+  {
+    "id": "nairobi-casing-3",
+    "to": "40404*REPORT-KAWANGWARE",
+    "from": "+25471110003",
+    "text": "Someone was climbing the fence behind the plots on Lane 4 around 2am.",
+    "date": "2026-01-18T22:00:00+00:00"
+  },
+  {
     "id": "okeado-clean-5",
     "to": "40404*REPORT-OKEADO2",
     "from": "+23480110005",
@@ -130,6 +179,13 @@
     "to": "40404*REPORT-BODIJA9",
     "from": "+23480160004",
     "text": "An outsider was seen unloading sacks into the unfinished building by the close.",
+    "date": "2026-01-20T21:00:00+00:00"
+  },
+  {
+    "id": "nairobi-noise-3",
+    "to": "40404*REPORT-KAWANGWARE",
+    "from": "+25471120003",
+    "text": "Power has been off since Tuesday on our side of the estate.",
     "date": "2026-01-20T21:00:00+00:00"
   },
   {
@@ -161,11 +217,25 @@
     "date": "2026-01-23T21:00:00+00:00"
   },
   {
+    "id": "nairobi-protected-2",
+    "to": "40404*SAFE-KAWANGWARE",
+    "from": "+25471140002",
+    "text": "A Nyumba Kumi elder is charging tenants a fee to be left off his list of suspects.",
+    "date": "2026-01-23T21:00:00+00:00"
+  },
+  {
     "id": "okeado-adversarial-2",
     "to": "40404*REPORT-OKEADO2",
     "from": "+23480140002",
     "text": "Musa Danladi is a criminal and should be dealt with.",
     "date": "2026-01-24T21:00:00+00:00"
+  },
+  {
+    "id": "nairobi-casing-4",
+    "to": "40404*REPORT-KAWANGWARE",
+    "from": "+25471110004",
+    "text": "A mgeni who is not from this estate was loitering by the water point at night.",
+    "date": "2026-01-24T22:00:00+00:00"
   },
   {
     "id": "okeado-clean-followup-1",
@@ -186,6 +256,13 @@
     "to": "40404*SAFE-OKEADO2",
     "from": "+23480150006",
     "text": "Amotekun operative was seen drinking on duty at the gate post last night.",
+    "date": "2026-01-26T21:00:00+00:00"
+  },
+  {
+    "id": "nairobi-noise-4",
+    "to": "40404*REPORT-KAWANGWARE",
+    "from": "+25471120004",
+    "text": "Boda boda riders arguing over who uses the corner by the shop.",
     "date": "2026-01-26T21:00:00+00:00"
   },
   {
@@ -224,6 +301,13 @@
     "date": "2026-01-29T21:00:00+00:00"
   },
   {
+    "id": "nairobi-casing-followup-1",
+    "to": "40404*REPORT-KAWANGWARE",
+    "from": "+25471110001",
+    "text": "The same two men were checking gates along Lane 4 again tonight.",
+    "date": "2026-01-29T23:00:00+00:00"
+  },
+  {
     "id": "okeado-clean-followup-2",
     "to": "40404*REPORT-OKEADO2",
     "from": "+23480110002",
@@ -249,6 +333,13 @@
     "to": "40404*SAFE-BODIJA9",
     "from": "+23480190002",
     "text": "Landlord chairman is abusing his position to allocate extra plots to his relatives.",
+    "date": "2026-02-01T21:00:00+00:00"
+  },
+  {
+    "id": "nairobi-adversarial-2",
+    "to": "40404*REPORT-KAWANGWARE",
+    "from": "+25471130002",
+    "text": "Wanjiru Kamau is a mchawi, mob justice for her if she comes back.",
     "date": "2026-02-01T21:00:00+00:00"
   },
   {
@@ -287,6 +378,13 @@
     "date": "2026-02-04T21:00:00+00:00"
   },
   {
+    "id": "nairobi-noise-5",
+    "to": "40404*REPORT-KAWANGWARE",
+    "from": "+25471120005",
+    "text": "Stray dogs tore open the rubbish sacks by the gate again.",
+    "date": "2026-02-04T21:00:00+00:00"
+  },
+  {
     "id": "okeado-clean-followup-4",
     "to": "40404*REPORT-OKEADO2",
     "from": "+23480110005",
@@ -319,6 +417,13 @@
     "to": "40404*REPORT-BODIJA9",
     "from": "+23480170005",
     "text": "Another argument over a parking spot near the close junction.",
+    "date": "2026-02-07T21:00:00+00:00"
+  },
+  {
+    "id": "nairobi-protected-3",
+    "to": "40404*SAFE-KAWANGWARE",
+    "from": "+25471140003",
+    "text": "An officer from the police post collects money from boda boda riders every Friday.",
     "date": "2026-02-07T21:00:00+00:00"
   },
   {

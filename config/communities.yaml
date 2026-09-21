@@ -42,3 +42,20 @@ communities:
       - name: "Bodija Close 9 Security Committee"
         contact: "security-committee-bodija9@example.org"
     thresholds: {}
+
+  # Nairobi, Kenya. Reads with the Nigerian English word lists for now:
+  # an en-KE or Swahili (sw) locale is its own config addition across
+  # locales.yaml, patterns.yaml and the redaction/accusation term files,
+  # reviewed by speakers from the community before it goes live.
+  - id: kawangware-nairobi
+    name: "Kawangware Residents Association"
+    locale: en-NG
+    normal_inbound: "40404*REPORT-KAWANGWARE"
+    protected_inbound: "40404*SAFE-KAWANGWARE"
+    protected_recipients:
+      - name: "Kawangware Landlord Association"
+        contact: "landlord-assoc-kawangware@example.org"
+    desk_recipients:
+      - name: "Kawangware Security Committee"
+        contact: "security-committee-kawangware@example.org"
+    thresholds: {}

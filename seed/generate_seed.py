@@ -23,6 +23,11 @@ Scenario composition (see CLAUDE.md "Seed data"):
   - protected-channel reports about the security apparatus itself (a gateman, an
     Amotekun operative, a committee member, a landlord chairman) -> routed to the
     landlord association, threshold 1; one of them also trips the profiling guard.
+  - a second country -> kawangware-nairobi (Nairobi, Kenya), same pipeline and
+    patterns, only a config row and Kenyan identity terms added: a burglary_casing
+    watch of 4 senders, 2 of its 5 reports redacted for Kenyan identity wording
+    (40%, under the profiling guard), plus noise, Swahili-epithet adversarial reports and
+    protected reports about an askari, a Nyumba Kumi elder and a police officer.
 """
 from __future__ import annotations
 
@@ -37,6 +42,8 @@ OKE_ADO_NORMAL = "40404*REPORT-OKEADO2"
 OKE_ADO_PROTECTED = "40404*SAFE-OKEADO2"
 BODIJA_NORMAL = "40404*REPORT-BODIJA9"
 BODIJA_PROTECTED = "40404*SAFE-BODIJA9"
+NAIROBI_NORMAL = "40404*REPORT-KAWANGWARE"
+NAIROBI_PROTECTED = "40404*SAFE-KAWANGWARE"
 
 
 def day(offset: int, hour: int = 21, minute: int = 0) -> str:
@@ -45,6 +52,10 @@ def day(offset: int, hour: int = 21, minute: int = 0) -> str:
 
 def phone(prefix: str, n: int) -> str:
     return f"+234801{prefix}{n:04d}"
+
+
+def ke_phone(prefix: str, n: int) -> str:
+    return f"+254711{prefix}{n:04d}"
 
 
 def msg(mid: str, to: str, sender: str, text: str, offset_day: int, hour: int = 21, minute: int = 0) -> dict:
@@ -191,7 +202,58 @@ def build_main_scenario() -> list:
     for i, (sender, text, off) in enumerate(protected_bodija, start=1):
         reports.append(msg(f"bodija-protected-{i}", BODIJA_PROTECTED, sender, text, off))
 
+    reports.extend(build_nairobi())
     reports.sort(key=lambda r: r["date"])
+    return reports
+
+
+def build_nairobi() -> list:
+    """kawangware-nairobi: the same scenario shapes in a second country,
+    to show a new community is config plus local word lists, not code."""
+    reports = []
+
+    # burglary_casing: 4 distinct senders over 3+ days -> watch, not escalate.
+    # 2 of the 5 reports carry Kenyan identity wording (40% redacted), under
+    # the 60% profiling guard, so the watch surfaces without a review hold.
+    casing = [
+        (ke_phone("1", 1), "Two men were checking gates along Lane 4 after 11pm, going plot by plot.", 3),
+        (ke_phone("1", 2), "A Kikuyu guy was photographing houses near the chief's camp from a parked car.", 8),
+        (ke_phone("1", 3), "Someone was climbing the fence behind the plots on Lane 4 around 2am.", 13),
+        (ke_phone("1", 4), "A mgeni who is not from this estate was loitering by the water point at night.", 19),
+    ]
+    for i, (sender, text, off) in enumerate(casing, start=1):
+        reports.append(msg(f"nairobi-casing-{i}", NAIROBI_NORMAL, sender, text, off, hour=22))
+    reports.append(msg("nairobi-casing-followup-1", NAIROBI_NORMAL, casing[0][0],
+                       "The same two men were checking gates along Lane 4 again tonight.", 24, hour=23))
+
+    # ambient noise, must not cluster
+    noise = [
+        (ke_phone("2", 1), "Matatu hooting at the stage goes on past midnight, nobody can sleep.", 2),
+        (ke_phone("2", 2), "No water from the county line for four days, the tanks are empty.", 9),
+        (ke_phone("2", 3), "Power has been off since Tuesday on our side of the estate.", 15),
+        (ke_phone("2", 4), "Boda boda riders arguing over who uses the corner by the shop.", 21),
+        (ke_phone("2", 5), "Stray dogs tore open the rubbish sacks by the gate again.", 30),
+    ]
+    for i, (sender, text, off) in enumerate(noise, start=1):
+        reports.append(msg(f"nairobi-noise-{i}", NAIROBI_NORMAL, sender, text, off))
+
+    # adversarial, naming a neighbour, with Swahili epithets and mob language
+    adversarial = [
+        (ke_phone("3", 1), "Otieno Ouma is a mwizi, everyone watch your phones around him.", 12),
+        (ke_phone("3", 2), "Wanjiru Kamau is a mchawi, mob justice for her if she comes back.", 27),
+    ]
+    for i, (sender, text, off) in enumerate(adversarial, start=1):
+        reports.append(msg(f"nairobi-adversarial-{i}", NAIROBI_NORMAL, sender, text, off))
+
+    # protected channel: the estate's own security and its government link
+    protected = [
+        (ke_phone("4", 1), "The night askari at the main gate takes money to let cars in without signing the book.", 7),
+        (ke_phone("4", 2), "A Nyumba Kumi elder is charging tenants a fee to be left off his list of suspects.", 18),
+        (ke_phone("4", 3), "An officer from the police post collects money from boda boda riders every Friday.", 33),
+    ]
+    for i, (sender, text, off) in enumerate(protected, start=1):
+        reports.append(msg(f"nairobi-protected-{i}", NAIROBI_PROTECTED, sender, text, off))
+
     return reports
 
 
