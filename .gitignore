@@ -7,3 +7,4 @@ data/
 .venv/
 venv/
 .DS_Store
+docs/demo-script.md
