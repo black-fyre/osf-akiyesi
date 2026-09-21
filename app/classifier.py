@@ -76,14 +76,13 @@ def classify_channel(
         return "protected"
 
     # Content fallback, in every language the message may be in (its
-    # detected locale plus the community's). A locale with no indicator
-    # list falls back to the inbound-identifier signal alone.
+    # detected locale plus the community's). The reader is always asked:
+    # Claude reads any language, so a complaint about a guard in a language
+    # with no indicator list still reaches it. The rule-based reader with
+    # no terms answers "normal", same as before.
     terms = []
     for loc in locales or [community.locale]:
         for term in _PROTECTED_INDICATOR_TERMS.get(loc, []):
             if term not in terms:
                 terms.append(term)
-    if terms:
-        return llm.classify_channel(redacted_text, terms)
-
-    return "normal"
+    return llm.classify_channel(redacted_text, terms)

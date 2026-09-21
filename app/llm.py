@@ -36,18 +36,24 @@ three pipeline stages code against (LLMClient) and two implementations:
   script, not this module's test coverage, is what verifies the network
   call itself.
 
-Swap which one the app uses via AKIYESI_LLM_BACKEND=rule_based|anthropic_claude
-(app/pipeline.py reads this once at startup). rule_based stays the default,
-so nothing about the tested, demoed pipeline changes unless that variable
-is set.
+Swap which one the app uses via AKIYESI_LLM_BACKEND=rule_based|anthropic_claude.
+Claude is the default (get_llm_client below), wrapped in GuardedClaudeClient
+so the rule-based lists stay a floor under it and a fallback behind it. The
+test suite pins rule_based (tests/__init__.py) to stay offline.
+
+(Parts of the history above are out of date: the SDK now installs, and
+scripts/replay_demo_on_claude.py runs every demo scene on the real API.)
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import re
+import threading
+from collections import OrderedDict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Protocol
+from typing import Dict, List, Optional, Protocol
 
 from app.textnorm import fold, replace_phrase
 
@@ -73,7 +79,9 @@ class LLMClient(Protocol):
     def classify_channel(self, text: str, protected_indicator_terms: List[str]) -> str:
         ...
 
-    def score_patterns(self, text: str, pattern_keywords: Dict[str, List[str]]) -> Dict[str, int]:
+    def score_patterns(
+        self, text: str, pattern_keywords: Dict[str, List[str]], pattern_names: Optional[Dict[str, str]] = None
+    ) -> Dict[str, int]:
         ...
 
 
@@ -129,7 +137,9 @@ class RuleBasedClient:
                 return "protected"
         return "normal"
 
-    def score_patterns(self, text: str, pattern_keywords: Dict[str, List[str]]) -> Dict[str, int]:
+    def score_patterns(
+        self, text: str, pattern_keywords: Dict[str, List[str]], pattern_names: Optional[Dict[str, str]] = None
+    ) -> Dict[str, int]:
         folded = fold(text)
         scores: Dict[str, int] = {}
         for pattern_id, keywords in pattern_keywords.items():
@@ -234,6 +244,63 @@ def parse_extraction_response(data: Dict, expected_pattern_ids: List[str]) -> Di
     return result
 
 
+def _first_json_object(raw_text: str) -> Dict:
+    """The first JSON object in a model reply, ignoring anything around it.
+
+    The prompts ask for bare JSON, but a reply may come wrapped in a ```json
+    fence and followed by an explanation. The earlier version stripped only
+    backticks at the very ends, so any trailing prose broke json.loads, and
+    every extraction call on Sonnet 4.5 silently fell back to the keyword
+    lists (tests/test_llm_anthropic_client_wiring.py now pins this).
+    """
+    start = raw_text.find("{")
+    if start == -1:
+        raise RuntimeError(f"Anthropic API response was not valid JSON: {raw_text!r}")
+    try:
+        data, _end = json.JSONDecoder().raw_decode(raw_text, start)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"Anthropic API response was not valid JSON: {raw_text!r}") from exc
+    return data
+
+
+_ANSWER_CACHE_SIZE = 1024
+
+
+def _load_system_prompt(filename: str) -> str:
+    """The model-facing part of a prompts/ file: everything from
+    "## System instruction" down. The header above it (which code uses the
+    prompt, what changed since the last version) is for people, and would
+    only be noise, and tokens, in every request."""
+    text = (PROMPTS_DIR / filename).read_text(encoding="utf-8")
+    # A heading on its own line: the header quotes the phrase, and a plain
+    # find() matched that quote and sent the whole file (a test caught it).
+    heading = re.search(r"^## System instruction[^\n]*$", text, re.MULTILINE)
+    return text[heading.end():].strip() if heading else text
+
+
+def _observation(text: str) -> str:
+    # The prompts treat everything inside these tags as untrusted data. A
+    # sender cannot close the tag early and write instructions after it.
+    return f"<observation>\n{text.replace('</observation', '</ observation')}\n</observation>"
+
+
+_WORD = re.compile(r"\w+", re.UNICODE)
+_PLACEHOLDER_WORDS = {"redacted", "person"}
+
+
+def words_added_by_redaction(original: str, redacted: str) -> List[str]:
+    """Words in a redaction that the sender never wrote (placeholders aside).
+
+    Redaction may only remove. A model that rewrites, summarises, translates
+    or follows an instruction hidden in the message produces words that were
+    not there, and the report would then describe something nobody saw.
+    GuardedClaudeClient discards such a redaction. Tone marks and case are
+    ignored, so a model restoring or dropping a mark is not a change.
+    """
+    source = set(_WORD.findall(fold(original)))
+    return [w for w in _WORD.findall(fold(redacted)) if w not in source and w not in _PLACEHOLDER_WORDS]
+
+
 class AnthropicClient:
     """Production client: real Claude calls via the Anthropic Messages API.
 
@@ -251,7 +318,7 @@ class AnthropicClient:
     strings, and passes the right prompt as `system=` on each call.
     """
 
-    def __init__(self, api_key: str, model_name: str = "claude-sonnet-4-5-20250929"):
+    def __init__(self, api_key: str, model_name: str = "claude-haiku-4-5-20251001"):
         try:
             import anthropic
         except ImportError as exc:
@@ -271,85 +338,128 @@ class AnthropicClient:
         self.model_name = model_name
         # A live demo cannot wait on the SDK's default ten-minute timeout.
         # A call that fails fast lets GuardedClaudeClient fall back to the
-        # rule-based lists, so the message still lands.
-        self._client = anthropic.Anthropic(api_key=api_key, timeout=20.0, max_retries=1)
+        # rule-based lists, so the message still lands. Worst case with one
+        # retry is about 20s; a normal call is under a second.
+        self._client = anthropic.Anthropic(api_key=api_key, timeout=10.0, max_retries=1)
 
-        self._redaction_prompt = (PROMPTS_DIR / "redaction_v1.md").read_text(encoding="utf-8")
-        self._classification_prompt = (PROMPTS_DIR / "classification_v1.md").read_text(encoding="utf-8")
-        self._extraction_prompt = (PROMPTS_DIR / "extraction_v1.md").read_text(encoding="utf-8")
+        self._redaction_prompt = _load_system_prompt("redaction_v2.md")
+        self._classification_prompt = _load_system_prompt("classification_v2.md")
+        self._extraction_prompt = _load_system_prompt("extraction_v2.md")
+
+        # Answers already given, keyed by a hash of (call, request). The
+        # demo replays the same scenes and ingest retries the same payloads,
+        # so a repeat costs nothing and returns at once. Keys are digests
+        # and values are parsed replies (redacted text at most), so the raw
+        # message is never held here.
+        self._answers: "OrderedDict[str, Dict]" = OrderedDict()
+        self._answers_lock = threading.Lock()
 
     def _generate_json(self, system_prompt: str, user_content: str) -> Dict:
-        """Call Claude and parse the raw text as JSON.
+        """Call Claude and return the first JSON object in its reply.
 
-        NOT exercised by the automated test suite in this iteration: the
-        `anthropic` package cannot be installed in this sandbox (no route
-        to pypi.org -- see docs/ai-usage.md), so there is no way to make
-        this exact call here, even though the API host itself is reachable.
-        Every error case below is still handled explicitly -- an empty
-        response, a malformed reply, an SDK/network exception -- so a real
-        failure in the field is loud and specific rather than an unhandled
-        exception deep in the pipeline. scripts/smoke_test_claude.py is
-        what proves this method actually works, on a machine that has the
-        SDK installed and a real API key.
+        Not structured outputs (output_config.format), on purpose: measured
+        on Haiku 4.5 on 21 Sep 2026, the schema added ~230 input tokens and
+        ~0.4s to every call, and a message makes two calls back to back
+        (docs/ai-usage.md). The stop sequence below plus _first_json_object
+        already cope with a fenced reply and a trailing explanation, and
+        the parse_*_response functions reject any category or channel
+        outside the allowed set. Any failure falls back to the word lists.
         """
+        key = hashlib.sha256(
+            json.dumps([self.model_name, system_prompt, user_content]).encode("utf-8")
+        ).hexdigest()
+        with self._answers_lock:
+            if key in self._answers:
+                self._answers.move_to_end(key)
+                return self._answers[key]
+
         try:
             response = self._client.messages.create(
                 model=self.model_name,
                 max_tokens=1024,
                 system=system_prompt,
                 messages=[{"role": "user", "content": user_content}],
+                # Claude tends to answer "```json {...} ```" and then write a
+                # "Reasoning:" paragraph. Stopping at the closing fence saves
+                # the seconds spent generating an explanation nobody reads.
+                stop_sequences=["\n```"],
             )
         except Exception as exc:  # noqa: BLE001 -- surface any SDK/network failure clearly
             raise RuntimeError(f"Anthropic API call failed: {exc}") from exc
 
-        content = getattr(response, "content", None)
-        raw_text = content[0].text if content else None
-        if not raw_text:
+        stop_reason = getattr(response, "stop_reason", None)
+        if stop_reason in ("refusal", "max_tokens"):
+            # A refusal carries no JSON; a max_tokens stop carries cut-off
+            # JSON. Either way the rule-based lists take this step.
+            raise RuntimeError(f"Anthropic API stopped with stop_reason={stop_reason!r}")
+
+        texts = [
+            block.text
+            for block in (getattr(response, "content", None) or [])
+            if getattr(block, "type", "text") == "text" and getattr(block, "text", None)
+        ]
+        if not texts:
             raise RuntimeError(f"Anthropic API returned no text content: {response!r}")
+        data = _first_json_object(texts[0])
 
-        # Defensive: the prompts ask for bare JSON, but strip a ```json
-        # fence if the model adds one anyway.
-        raw_text = raw_text.strip()
-        if raw_text.startswith("```"):
-            raw_text = raw_text.strip("`")
-            if raw_text.lower().startswith("json"):
-                raw_text = raw_text[4:]
-            raw_text = raw_text.strip()
+        with self._answers_lock:
+            self._answers[key] = data
+            while len(self._answers) > _ANSWER_CACHE_SIZE:
+                self._answers.popitem(last=False)
+        return data
 
+    def warm_up(self) -> Optional[str]:
+        """Open the connection and check the model before the first message.
+
+        Two tiny calls, in the background at server start: the TLS
+        handshake and the first compile of each reply schema happen here
+        rather than on a resident's first message, and a model id the key
+        cannot use is reported at startup instead of turning every message
+        into a silent fallback. Returns None, or what went wrong.
+        """
         try:
-            return json.loads(raw_text)
-        except json.JSONDecodeError as exc:
-            raise RuntimeError(f"Anthropic API response was not valid JSON: {raw_text!r}") from exc
+            self.classify_channel("warm-up: a parked car on the street", [])
+            self.redact("warm-up: a parked car on the street", {})
+        except Exception as exc:  # noqa: BLE001
+            return str(exc)
+        return None
 
     def redact(self, text: str, terms: Dict[str, List[str]]) -> RedactionResult:
         # `terms` is intentionally unused here: the categories to remove
-        # are fully specified in prompts/redaction_v1.md's system prompt,
+        # are fully specified in prompts/redaction_v2.md's system prompt,
         # with worked examples -- that generalisation past an exact phrase
         # list is the entire reason to use a model instead of
         # RuleBasedClient, which is the implementation that actually needs
-        # `terms` (config/redaction_terms.yaml).
-        data = self._generate_json(self._redaction_prompt, text)
+        # `terms` (config/redaction_terms.yaml). GuardedClaudeClient runs
+        # those lists over this result as a floor.
+        data = self._generate_json(self._redaction_prompt, _observation(text))
         return parse_redaction_response(data)
 
     def classify_channel(self, text: str, protected_indicator_terms: List[str]) -> str:
         # Same reasoning as redact(): the classification criteria and
-        # worked examples live in prompts/classification_v1.md, not in
+        # worked examples live in prompts/classification_v2.md, not in
         # protected_indicator_terms (app/classifier.py's own fallback list).
-        data = self._generate_json(self._classification_prompt, text)
+        data = self._generate_json(self._classification_prompt, _observation(text))
         return parse_classification_response(data)
 
-    def score_patterns(self, text: str, pattern_keywords: Dict[str, List[str]]) -> Dict[str, int]:
-        # Unlike the two methods above, prompts/extraction_v1.md requires
-        # patterns to be "supplied at call time" (CLAUDE.md scalability
-        # seam #3: pattern definition is config, not code), so
-        # pattern_keywords has to be serialised into this call's user turn.
+    def score_patterns(
+        self, text: str, pattern_keywords: Dict[str, List[str]], pattern_names: Optional[Dict[str, str]] = None
+    ) -> Dict[str, int]:
+        # prompts/extraction_v2.md requires patterns to be "supplied at
+        # call time" (CLAUDE.md scalability seam #3: pattern definition is
+        # config, not code), so the patterns are serialised into this
+        # call's user turn.
+        names = pattern_names or {}
         patterns_block = "\n".join(
-            f"- {pattern_id}: {', '.join(keywords) if keywords else '(no keyword hints for this locale)'}"
+            f"- {pattern_id}"
+            + (f" ({names[pattern_id]})" if names.get(pattern_id) else "")
+            + f": {', '.join(keywords) if keywords else '(no cue phrases for this language)'}"
             for pattern_id, keywords in pattern_keywords.items()
         )
-        user_content = f"Patterns:\n{patterns_block}\n\nObservation: {text}"
+        user_content = f"<patterns>\n{patterns_block}\n</patterns>\n\n{_observation(text)}"
+        ids = list(pattern_keywords.keys())
         data = self._generate_json(self._extraction_prompt, user_content)
-        return parse_extraction_response(data, expected_pattern_ids=list(pattern_keywords.keys()))
+        return parse_extraction_response(data, expected_pattern_ids=ids)
 
 
 _CATEGORY_WORDS = {
@@ -386,22 +496,40 @@ class GuardedClaudeClient:
         self.rules = rules
         self.model_name = getattr(claude, "model_name", "")
         self._events: List[str] = []
+        # The channel and pattern calls run on two threads (app/pipeline.py),
+        # and the HTTP server runs requests on threads of its own.
+        self._events_lock = threading.Lock()
+
+    def _note(self, event: str) -> None:
+        with self._events_lock:
+            self._events.append(event)
 
     def drain_events(self) -> List[str]:
-        events, self._events = self._events, []
+        with self._events_lock:
+            events, self._events = self._events, []
         return events
+
+    def warm_up(self) -> Optional[str]:
+        warm = getattr(self.claude, "warm_up", None)
+        return warm() if warm else None
 
     def redact(self, text: str, terms: Dict[str, List[str]]) -> RedactionResult:
         try:
             first = self.claude.redact(text, terms)
         except Exception:  # noqa: BLE001 -- any failure: fall back, never lose the message
-            self._events.append("Claude did not answer for redaction, so the word lists in config did it.")
+            self._note("Claude did not answer for redaction, so the word lists in config did it.")
+            return self.rules.redact(text, terms)
+        if words_added_by_redaction(text, first.redacted_text):
+            self._note(
+                "Claude's redaction changed the wording instead of only removing identity words, "
+                "so the word lists in config did it."
+            )
             return self.rules.redact(text, terms)
         floor = self.rules.redact(first.redacted_text, terms)
         categories = list(first.categories_redacted)
         extra = [c for c in floor.categories_redacted if c not in categories]
         if extra:
-            self._events.append(
+            self._note(
                 "The word lists in config also removed something Claude left in ("
                 + ", ".join(_CATEGORY_WORDS.get(c, c) for c in extra) + ")."
             )
@@ -412,16 +540,35 @@ class GuardedClaudeClient:
         try:
             by_claude = self.claude.classify_channel(text, protected_indicator_terms)
         except Exception:  # noqa: BLE001
-            self._events.append("Claude did not answer for the channel check, so the word lists in config did it.")
+            self._note("Claude did not answer for the channel check, so the word lists in config did it.")
             return by_rules
+        if by_rules == "protected" and by_claude == "normal":
+            self._note("Claude read this as a normal report; the word lists in config sent it to the protected channel.")
         return "protected" if "protected" in (by_claude, by_rules) else "normal"
 
-    def score_patterns(self, text: str, pattern_keywords: Dict[str, List[str]]) -> Dict[str, int]:
+    def score_patterns(
+        self, text: str, pattern_keywords: Dict[str, List[str]], pattern_names: Optional[Dict[str, str]] = None
+    ) -> Dict[str, int]:
         try:
-            return self.claude.score_patterns(text, pattern_keywords)
+            if pattern_names:
+                scores = self.claude.score_patterns(text, pattern_keywords, pattern_names=pattern_names)
+            else:
+                scores = self.claude.score_patterns(text, pattern_keywords)
         except Exception:  # noqa: BLE001
-            self._events.append("Claude did not answer for pattern matching, so the keyword lists in config did it.")
+            self._note("Claude did not answer for pattern matching, so the keyword lists in config did it.")
             return self.rules.score_patterns(text, pattern_keywords)
+        # Claude decides here (it is better than a word list at telling a
+        # lost goat from casing), but say so when it overrules the lists,
+        # so a presenter can see the difference.
+        if not any(scores.values()):
+            by_rules = self.rules.score_patterns(text, pattern_keywords)
+            matched = [pid for pid, s in by_rules.items() if s > 0]
+            if matched:
+                self._note(
+                    "Claude matched this to no pattern; the keyword lists would have filed it under "
+                    + ", ".join(matched) + "."
+                )
+        return scores
 
 
 def get_llm_client() -> LLMClient:
@@ -442,7 +589,7 @@ def get_llm_client() -> LLMClient:
         return RuleBasedClient()
     if backend == "anthropic_claude":
         api_key = os.environ.get("AKIYESI_ANTHROPIC_API_KEY", "")
-        model_name = os.environ.get("AKIYESI_CLAUDE_MODEL", "claude-sonnet-4-5-20250929")
+        model_name = os.environ.get("AKIYESI_CLAUDE_MODEL", "claude-haiku-4-5-20251001")
         try:
             claude = AnthropicClient(api_key=api_key, model_name=model_name)
         except RuntimeError as exc:

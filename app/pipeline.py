@@ -8,6 +8,7 @@ is easy to unit test stage by stage as well as end to end.
 """
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, Optional
@@ -28,6 +29,11 @@ STATUS_REJECTED_TARGETING = "rejected_targeting"
 STATUS_NEEDS_REVIEW_LOCALE = "needs_review_locale"
 
 SUPPORTED_LOCALES = {"en-NG", "yo"}
+
+# One pool for the process rather than one per message: the channel call
+# runs here while extraction runs on the request thread. Sized for a few
+# messages arriving at once on the threaded server.
+_READERS = ThreadPoolExecutor(max_workers=8, thread_name_prefix="akiyesi-reader")
 
 
 class UnknownInboundError(ValueError):
@@ -117,14 +123,19 @@ def process_inbound(raw_payload: Dict[str, Any], config: AppConfig, llm: LLMClie
             "until reviewed."
         )
 
-    channel = classify_channel(payload.to, redacted.text, community, config, llm, locales=safety_locales)
+    # Channel and pattern both read only the redacted text, so with Claude
+    # as the reader the two calls run at the same time rather than back to
+    # back (about a second and a half saved per message).
+    pending_channel = _READERS.submit(
+        classify_channel, payload.to, redacted.text, community, config, llm, locales=safety_locales
+    )
+    extraction = extract(redacted.text, community, config, llm, locales=locales)
+    channel = pending_channel.result()
 
     guard = check_named_target_accusation(redacted.text, safety_locales, config)
     if guard.blocked and status == STATUS_STORED:
         status = STATUS_REJECTED_TARGETING
         rejection_reason = guard.reason
-
-    extraction = extract(redacted.text, community, config, llm, locales=locales)
 
     report = Report(
         id=store.new_id(),

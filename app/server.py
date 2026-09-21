@@ -493,6 +493,14 @@ def run(host: str = "127.0.0.1", port: int = 8000, db_path: str = "data/akiyesi.
     print(f"Akiyesi desk running at http://{host}:{port}  (Ctrl+C to stop)")
     if getattr(ctx.llm, "backend_name", "") == "claude":
         print(f"Reading messages with Claude ({ctx.llm.model_name}), config word lists as floor and fallback")
+
+        def _warm_up():
+            problem = ctx.llm.warm_up()
+            if problem:
+                print(f"Claude warm-up failed, so messages will fall back to the word lists until it answers: {problem}")
+
+        # In the background, so the desk is up at once.
+        threading.Thread(target=_warm_up, name="claude-warm-up", daemon=True).start()
     else:
         print("Reading messages with the rule-based client (set AKIYESI_LLM_BACKEND=anthropic_claude and a key for Claude)")
     if demo_mode:

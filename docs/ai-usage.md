@@ -7,6 +7,122 @@ CLAUDE.md's AI-coding-usage section. Newest session first.
 
 ---
 
+## Session 10 -- 21 September 2026 (submission day, late night)
+
+**Asked:** treat the Claude path as the first-class one: walk the app, fix
+what is wrong with the Claude calls, make them fast, and list what the
+Claude path is missing compared with the rule-based path.
+
+**Baseline, measured first:** all 12 scenes replayed on Haiku 4.5, 12 of 12
+as scripted, 2.0 to 2.5 s per message, 67.8 s in total.
+
+**Changed:**
+
+1. **Prompts v2** (`prompts/*_v2.md`; v1 kept as history). The message goes
+   inside `<observation>` tags and is treated as untrusted data, and a sender
+   cannot close the tag early. Only the part from "## System instruction"
+   down is sent: v1 sent the whole file, including notes about which Python
+   class uses it. Extraction gets each pattern's name, not only its id, and
+   no longer asks for `time_of_day`, which the code already threw away.
+   Measured in one run: extraction 1.37 s to 1.01 s median and 63 to 37
+   output tokens; redaction 1.25 s to 1.15 s; classification unchanged.
+2. **A redaction may only remove words.** `words_added_by_redaction` rejects
+   a Claude redaction containing words the sender never wrote (a rewrite, a
+   summary, an obeyed injected instruction), and the word lists do that
+   step instead, with a note on the console. Tone marks are ignored.
+3. **Repeated requests are answered from memory**: a bounded cache, keyed
+   by digest so no raw text is held. A re-run scene went from 2.07 s to
+   0.008 s per message.
+4. **Warm-up at server start**, in the background: opens the connection and
+   reports a bad model id at startup instead of as a silent fallback on
+   every message.
+5. **`stop_reason` checked**: `refusal` or `max_tokens` falls back to the
+   word lists instead of parsing a cut-off reply.
+6. **The classifier always asks the reader.** Before, Claude was consulted
+   only when the message's language had a keyword list, so a French
+   complaint about a guard never reached it.
+7. **Console notes when the word lists overrule Claude** on the channel,
+   and when Claude files as noise something the keyword lists would have
+   matched. Thread-safe now that two calls run at once. One shared thread
+   pool instead of a new one per message.
+
+**Tried and rejected, on measurement:** structured outputs
+(`output_config.format` with a JSON schema). It is the textbook fix for
+getting valid JSON back, but on Haiku 4.5 it added about 230 input tokens
+and about 0.4 s to every call (median 1.03 s to 1.42 s over 6 calls), and a
+message makes two calls back to back. The stop sequence and tolerant parser
+from Session 9 already handle the fenced reply, and the `parse_*` functions
+already reject any category or channel outside the allowed set.
+
+**Where the agent was wrong, and how it was caught.** The first version of
+`_load_system_prompt` cut each prompt file at `text.find("## System
+instruction")`. The v2 headers quote that phrase, so the cut landed in the
+header and the whole file was still sent. A test written in this session
+(`test_system_prompt_is_the_model_facing_part_of_the_file_only`) failed on
+it; the fix matches the heading only on a line of its own.
+
+**Measuring honestly:** a full replay of identical code took 96 s in one
+run and 73.5 s in the next. API latency moves more than any of these
+changes, so per-call comparisons were run back to back in one script, and
+a single replay total is never compared with another run's total.
+
+**Verified live:** 12 of 12 scenes as scripted on Haiku 4.5, no fallback
+notes. Full suite: 165 tests, passing.
+
+---
+
+## Session 9 -- 21 September 2026 (submission day, night)
+
+**Asked:** "why are the Claude calls so slow right now". The author
+had noticed demo scenes taking most of a minute.
+
+**Diagnosis, measured rather than guessed.** Each call was timed against
+the real API. Every message makes three Claude calls one after another
+(redact, then channel, then pattern). On Sonnet 4.5 they took 2.5s, 1.6s and
+4.0s, about 8 seconds per message, and a 5-message scene runs its messages
+back to back in one request, so about 40 seconds. The 4-second pattern call
+was the odd one out: 143 output tokens for a reply that needs about 20.
+
+**Where the agent was wrong, and how it was caught.** Printing that reply
+showed a fenced JSON object followed by a "**Reasoning:**" paragraph.
+`AnthropicClient._generate_json` (agent-written for Gemini in Session 2,
+carried over unchanged to Claude in Session 3) stripped
+backticks only at the very start and end of the reply, so any trailing
+prose broke `json.loads`. Calling `score_patterns` directly raised
+`Anthropic API response was not valid JSON`. Because of the Session 8
+fallback, that error never surfaced: **every pattern match on Claude had
+silently been done by the keyword lists**, after paying 4 seconds for an
+explanation nobody read. The existing test
+(`test_markdown_fenced_json_response_is_still_parsed`) used a clean fenced
+reply with nothing after it, so it passed. It tested the shape the agent
+assumed, not the shape the model sends.
+
+**Fixes** (the author chose three of the four options offered):
+
+1. `stop_sequences=["\n```"]` ends generation at the closing fence, and a
+   new `_first_json_object` reads the first JSON object in the reply
+   whatever comes before or after it. Two regression tests in
+   `tests/test_llm_anthropic_client_wiring.py` use the real Sonnet reply
+   above. **Both fail on the old code and pass on the new**, checked by
+   stashing the fix and running them.
+2. Channel and pattern checks now run at the same time
+   (`app/pipeline.py`), since both read only the redacted text. Redaction
+   still runs first; nothing unredacted reaches either call.
+3. The default model is now Haiku 4.5 (`claude-haiku-4-5-20251001`). These
+   are short, tightly specified JSON tasks, and Haiku adds the same
+   trailing explanation, so it only became usable after fix 1.
+
+**Rejected for now:** reading a scene's messages in parallel. It would make
+a 5-message scene as fast as one message, but it touches the order in which
+reports are stored and clustered, too much to change on submission day.
+
+**Verified live:** `scripts/replay_demo_on_claude.py` replays all 12 scenes
+on Haiku 4.5. All 12 land as scripted, at 2.1 to 2.7 seconds per message
+(was about 8), and no fallback notes are printed, so Claude really did
+every step. Full suite: 155 tests, passing.
+
+---
+
 ## Session 8 -- 21 September 2026 (submission day, evening)
 
 **Delegated:** "switch to Claude". The author had been running the Claude

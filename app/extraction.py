@@ -41,7 +41,14 @@ def extract(redacted_text: str, community: Community, config: AppConfig, llm: LL
     pattern_keywords = {
         p.id: p.keywords_for(locales) for p in config.patterns
     }
-    scores = llm.score_patterns(redacted_text, pattern_keywords)
+    # Names only when a model reads them; the rule-based client scores on
+    # keywords alone and keeps its original two-argument call.
+    if getattr(llm, "backend_name", "") == "claude":
+        scores = llm.score_patterns(
+            redacted_text, pattern_keywords, pattern_names={p.id: p.name for p in config.patterns}
+        )
+    else:
+        scores = llm.score_patterns(redacted_text, pattern_keywords)
     best_pattern, best_score = UNCLASSIFIED, 0
     for pattern_id, score in scores.items():
         if score > best_score:

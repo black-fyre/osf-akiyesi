@@ -143,7 +143,7 @@ python3 -m app.server                    # reads .env itself; prints which reade
 exported, so `AKIYESI_LLM_BACKEND=rule_based python3 -m app.server` still
 runs the rule-based reader for one session. With no backend set and no key,
 the server warns and runs the rule-based reader, so a fresh clone still
-starts. If `claude-sonnet-4-5-20250929` isn't available to your key, set
+starts. If `claude-haiku-4-5-20251001` isn't available to your key, set
 `AKIYESI_CLAUDE_MODEL` to one listed at
 https://docs.claude.com/en/docs/about-claude/models.
 

@@ -92,6 +92,62 @@ class GuardedClientTests(unittest.TestCase):
         self.assertEqual(GuardedClaudeClient(FakeClaude(channel="normal"), rules).classify_channel("an ordinary report", ["gateman"]), "normal")
 
 
+    def test_a_redaction_that_adds_words_is_discarded(self):
+        # Redaction may only remove. A rewrite (or an obeyed instruction
+        # hidden in the message) would put words in a resident's mouth.
+        rewritten = "A [REDACTED] man was seen stealing a generator."
+        client = GuardedClaudeClient(FakeClaude(redact_text=rewritten), RuleBasedClient())
+        result = client.redact("A Hausa man was checking gates.", TERMS)
+        self.assertEqual(result.redacted_text, "A [REDACTED] man was checking gates.")
+        events = client.drain_events()
+        self.assertEqual(len(events), 1)
+        self.assertIn("changed the wording", events[0])
+        self.assertNotIn("generator", events[0])
+
+    def test_dropping_tone_marks_is_not_a_rewrite(self):
+        client = GuardedClaudeClient(FakeClaude(redact_text="Okunrin meji n wo ile lale."), RuleBasedClient())
+        result = client.redact("Ọkùnrin méjì ń wo ilé lálẹ́.", TERMS)
+        self.assertEqual(result.redacted_text, "Okunrin meji n wo ile lale.")
+        self.assertEqual(client.drain_events(), [])
+
+    def test_lists_overruling_claude_on_the_channel_is_noted(self):
+        client = GuardedClaudeClient(FakeClaude(channel="normal"), RuleBasedClient())
+        client.classify_channel("the gateman took money", ["gateman"])
+        events = client.drain_events()
+        self.assertEqual(len(events), 1)
+        self.assertIn("protected channel", events[0])
+
+    def test_claude_filing_as_noise_against_the_lists_is_noted_not_overruled(self):
+        class NoPattern(FakeClaude):
+            def score_patterns(self, text, pattern_keywords, pattern_names=None):
+                return {pid: 0 for pid in pattern_keywords}
+
+        client = GuardedClaudeClient(NoPattern(), RuleBasedClient())
+        scores = client.score_patterns("my goat was loitering by the gate", {"burglary_casing": ["loitering"]})
+        self.assertEqual(scores, {"burglary_casing": 0})
+        self.assertIn("burglary_casing", client.drain_events()[0])
+
+
+class ClassifierAsksTheReaderTests(unittest.TestCase):
+    def test_a_language_with_no_indicator_list_still_reaches_the_reader(self):
+        from app.classifier import classify_channel
+
+        config = get_config()
+        community = next(iter(config.communities.values()))
+        seen = []
+
+        class Recorder(RuleBasedClient):
+            def classify_channel(self, text, terms):
+                seen.append(terms)
+                return "protected"
+
+        channel = classify_channel(
+            community.normal_inbound, "Le gardien demande de l'argent.", community, config, Recorder(), locales=["fr"]
+        )
+        self.assertEqual(channel, "protected")
+        self.assertEqual(seen, [[]])
+
+
 class ChoiceOfClientTests(unittest.TestCase):
     def test_claude_is_the_default(self):
         with mock.patch.dict(os.environ, {"AKIYESI_ANTHROPIC_API_KEY": "k"}, clear=False):

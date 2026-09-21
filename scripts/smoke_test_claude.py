@@ -22,7 +22,7 @@ walkthrough):
     1. An Anthropic API key from https://console.anthropic.com/
     2. pip install -r requirements.txt   (installs the anthropic package)
     3. export AKIYESI_ANTHROPIC_API_KEY=<your-api-key>
-       export AKIYESI_CLAUDE_MODEL=claude-sonnet-4-5-20250929  # optional, this is the default
+       export AKIYESI_CLAUDE_MODEL=claude-haiku-4-5-20251001  # optional, this is the default
 
 Run:
     python3 scripts/smoke_test_claude.py
@@ -59,7 +59,7 @@ def main() -> None:
     if not api_key:
         _fail("AKIYESI_ANTHROPIC_API_KEY is not set. Export it to your Anthropic API key and re-run.")
 
-    model_name = os.environ.get("AKIYESI_CLAUDE_MODEL", "claude-sonnet-4-5-20250929")
+    model_name = os.environ.get("AKIYESI_CLAUDE_MODEL", "claude-haiku-4-5-20251001")
 
     print(f"Connecting to the Anthropic API: model={model_name!r}")
     try:
