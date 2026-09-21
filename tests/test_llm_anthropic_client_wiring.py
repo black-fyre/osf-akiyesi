@@ -57,8 +57,9 @@ class FakeAnthropic:
 
     instances = []
 
-    def __init__(self, api_key=None):
+    def __init__(self, api_key=None, **kwargs):
         self.api_key = api_key
+        self.kwargs = kwargs
         self.messages = FakeMessagesResource()
         FakeAnthropic.instances.append(self)
 

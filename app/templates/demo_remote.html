@@ -31,6 +31,7 @@
   .brand { display: flex; align-items: baseline; gap: .55rem; margin-right: auto; }
   .brand h1 { font-size: 1.2rem; }
   .brand span { color: #b9b7ad; font-size: .92rem; }
+  .brand .reader { font-size: .76rem; border: 1px solid #555; border-radius: 999px; padding: .05rem .5rem; }
   .links { display: flex; gap: .4rem; flex-wrap: wrap; }
   .tbtn { background: transparent; color: #fff; border: 1px solid #666; border-radius: .35rem; padding: .3rem .65rem; font-size: .86rem; text-decoration: none; display: inline-block; }
   .tbtn:hover { background: #333; }
@@ -117,7 +118,7 @@
 </head>
 <body>
 <header class="top">
-  <div class="brand"><h1>Àkíyèsí</h1><span>presenter remote</span></div>
+  <div class="brand"><h1>Àkíyèsí</h1><span>presenter remote</span>{% if reader %}<span class="reader">reading with {{ reader }}</span>{% endif %}</div>
   <nav class="links" aria-label="Open the app">
     <a class="tbtn primary" href="/demo" target="akiyesi-main">Main screen ↗</a>
     <a class="tbtn" id="link-desk" href="/desk" target="akiyesi-desk">Desk ↗</a>
@@ -183,6 +184,8 @@
           <li>Desk sees day-level dates only, never who sent it</li>
           <li>Every escalation is a person's decision, on the audit log</li>
           <li>Referral brief is the bridge to Amotekun, a state outfit</li>
+          <li>Claude reads the text; the word lists stay as a floor and a fallback</li>
+          <li>The accusation check and thresholds are fixed rules, not a model</li>
         </ul>
       </div>
       <div>
@@ -276,6 +279,8 @@
   function describe(r, group) {
     var d = describeCore(r, group);
     if (r.locale && r.locale !== 'en-NG') d.title = 'Read as ' + (r.locale_name || r.locale) + '. ' + d.title;
+    var events = (r.reader && r.reader.events) || [];
+    if (events.length) d.detail = (d.detail ? d.detail + ' ' : '') + events.join(' ');
     return d;
   }
   function describeCore(r, group) {

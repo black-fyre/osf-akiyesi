@@ -44,6 +44,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.llm import AnthropicClient  # noqa: E402
+from app.envfile import load_env_file  # noqa: E402
+
+load_env_file()  # picks up AKIYESI_ANTHROPIC_API_KEY from .env, no export needed
 
 
 def _fail(message: str) -> None:

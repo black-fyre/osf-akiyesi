@@ -39,6 +39,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from app import audit, clustering, demo, ingest, referral
 from app.config import AppConfig, get_config
+from app.envfile import load_env_file
 from app.llm import LLMClient, get_llm_client
 from app.storage import Store, make_store
 
@@ -255,7 +256,16 @@ def make_handler(ctx: AppContext):
             }
             return self._send(
                 200,
-                render("demo_remote.html", boot=boot, numbers=demo.presenter_numbers(ctx.config)),
+                render(
+                    "demo_remote.html",
+                    boot=boot,
+                    numbers=demo.presenter_numbers(ctx.config),
+                    reader=(
+                        f"Claude ({ctx.llm.model_name})"
+                        if getattr(ctx.llm, "backend_name", "") == "claude"
+                        else "rule-based lists"
+                    ),
+                ),
             )
 
         def _demo_state(self, qs):
@@ -409,12 +419,17 @@ def make_handler(ctx: AppContext):
 
 
 def run(host: str = "127.0.0.1", port: int = 8000, db_path: str = "data/akiyesi.db") -> None:
+    load_env_file()  # .env settings, without overriding anything already exported
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
     demo_mode = demo.demo_mode_from_env(default=True)
     ctx = AppContext(store=make_store(db_path), demo_mode=demo_mode)
     handler = make_handler(ctx)
     httpd = ThreadingHTTPServer((host, port), handler)
     print(f"Akiyesi desk running at http://{host}:{port}  (Ctrl+C to stop)")
+    if getattr(ctx.llm, "backend_name", "") == "claude":
+        print(f"Reading messages with Claude ({ctx.llm.model_name}), config word lists as floor and fallback")
+    else:
+        print("Reading messages with the rule-based client (set AKIYESI_LLM_BACKEND=anthropic_claude and a key for Claude)")
     if demo_mode:
         print(f"Demo console at http://{host}:{port}/demo  (its Reset button wipes all data; set {demo.DEMO_ENV}=0 to turn it off)")
     try:

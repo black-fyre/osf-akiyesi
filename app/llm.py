@@ -269,7 +269,10 @@ class AnthropicClient:
             )
 
         self.model_name = model_name
-        self._client = anthropic.Anthropic(api_key=api_key)
+        # A live demo cannot wait on the SDK's default ten-minute timeout.
+        # A call that fails fast lets GuardedClaudeClient fall back to the
+        # rule-based lists, so the message still lands.
+        self._client = anthropic.Anthropic(api_key=api_key, timeout=20.0, max_retries=1)
 
         self._redaction_prompt = (PROMPTS_DIR / "redaction_v1.md").read_text(encoding="utf-8")
         self._classification_prompt = (PROMPTS_DIR / "classification_v1.md").read_text(encoding="utf-8")
@@ -349,14 +352,95 @@ class AnthropicClient:
         return parse_extraction_response(data, expected_pattern_ids=list(pattern_keywords.keys()))
 
 
-def get_llm_client() -> LLMClient:
-    import os
+class GuardedClaudeClient:
+    """Claude, with the rule-based lists as a floor under it and a fallback
+    behind it. This is what AKIYESI_LLM_BACKEND=anthropic_claude runs.
 
-    backend = os.environ.get("AKIYESI_LLM_BACKEND", "rule_based")
+    Floor: Claude's redaction follows prompts/redaction_v1.md, which
+    generalises past any word list, but the config lists
+    (config/redaction_terms.yaml, including Yoruba) still run over Claude's
+    output, so anything on a list is removed even if the model left it in.
+    Likewise a message either reader thinks is about the guards goes to the
+    protected channel. The model can widen protection, never narrow it.
+
+    Fallback: if a call fails (network, timeout, a reply that breaks the
+    JSON contract), that one step uses the rule-based client instead, so a
+    message is never lost to an API error in the middle of a demo.
+
+    Both are recorded as plain-language events (no message content) that
+    the demo console shows, so the audience sees which reader did what.
+    """
+
+    backend_name = "claude"
+
+    def __init__(self, claude: "AnthropicClient", rules: RuleBasedClient):
+        self.claude = claude
+        self.rules = rules
+        self.model_name = getattr(claude, "model_name", "")
+        self._events: List[str] = []
+
+    def drain_events(self) -> List[str]:
+        events, self._events = self._events, []
+        return events
+
+    def redact(self, text: str, terms: Dict[str, List[str]]) -> RedactionResult:
+        try:
+            first = self.claude.redact(text, terms)
+        except Exception:  # noqa: BLE001 -- any failure: fall back, never lose the message
+            self._events.append("Claude did not answer for redaction, so the word lists in config did it.")
+            return self.rules.redact(text, terms)
+        floor = self.rules.redact(first.redacted_text, terms)
+        categories = list(first.categories_redacted)
+        extra = [c for c in floor.categories_redacted if c not in categories]
+        if extra:
+            self._events.append(
+                "The word lists in config also removed something Claude left in ("
+                + ", ".join(c.replace("_", " ") for c in extra) + ")."
+            )
+        return RedactionResult(redacted_text=floor.redacted_text, categories_redacted=categories + extra)
+
+    def classify_channel(self, text: str, protected_indicator_terms: List[str]) -> str:
+        by_rules = self.rules.classify_channel(text, protected_indicator_terms)
+        try:
+            by_claude = self.claude.classify_channel(text, protected_indicator_terms)
+        except Exception:  # noqa: BLE001
+            self._events.append("Claude did not answer for the channel check, so the word lists in config did it.")
+            return by_rules
+        return "protected" if "protected" in (by_claude, by_rules) else "normal"
+
+    def score_patterns(self, text: str, pattern_keywords: Dict[str, List[str]]) -> Dict[str, int]:
+        try:
+            return self.claude.score_patterns(text, pattern_keywords)
+        except Exception:  # noqa: BLE001
+            self._events.append("Claude did not answer for pattern matching, so the keyword lists in config did it.")
+            return self.rules.score_patterns(text, pattern_keywords)
+
+
+def get_llm_client() -> LLMClient:
+    """Claude by default (AKIYESI_LLM_BACKEND=anthropic_claude, or unset).
+
+    If Claude was asked for explicitly and cannot be set up (no `anthropic`
+    package, no key), this raises: a misconfigured deployment should be
+    loud. If the backend was left unset, it warns on stderr and runs the
+    rule-based client, so a fresh clone still starts. The test suite pins
+    rule_based (tests/__init__.py) so it stays repeatable and offline.
+    """
+    import os
+    import sys
+
+    explicit = os.environ.get("AKIYESI_LLM_BACKEND")
+    backend = explicit or "anthropic_claude"
     if backend == "rule_based":
         return RuleBasedClient()
     if backend == "anthropic_claude":
         api_key = os.environ.get("AKIYESI_ANTHROPIC_API_KEY", "")
         model_name = os.environ.get("AKIYESI_CLAUDE_MODEL", "claude-sonnet-4-5-20250929")
-        return AnthropicClient(api_key=api_key, model_name=model_name)
+        try:
+            claude = AnthropicClient(api_key=api_key, model_name=model_name)
+        except RuntimeError as exc:
+            if explicit:
+                raise
+            print(f"Akiyesi: Claude is not set up ({exc}) Running the rule-based client instead.", file=sys.stderr)
+            return RuleBasedClient()
+        return GuardedClaudeClient(claude, RuleBasedClient())
     raise ValueError(f"unknown AKIYESI_LLM_BACKEND: {backend!r}")

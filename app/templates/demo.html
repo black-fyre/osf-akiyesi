@@ -519,6 +519,14 @@
     out.push(step('ok', 'Arrives by SMS', h('p', {}, [
       'Received on ', code(r.to), ' from ', bold(resident), '. The number is hashed to ', code(r.sender_hash_short), ' on arrival and is not stored.'
     ])));
+    if (r.reader && r.reader.name === 'Claude') {
+      out.push(step('ok', 'Read by Claude', h('p', {
+        text: 'Redaction, channel and pattern are read by ' + (r.reader.model || 'Claude') + '. The word lists in config run underneath as a floor. The accusation check and the thresholds are fixed rules, not a model.'
+      })));
+    }
+    (r.reader && r.reader.events || []).forEach(function (e) {
+      out.push(step(/did not answer/.test(e) ? 'muted' : 'ok', /did not answer/.test(e) ? 'Fallback' : 'Floor', h('p', { text: e })));
+    });
     if (r.locale && r.locale !== 'en-NG') {
       out.push(step('ok', 'Read as ' + (r.locale_name || r.locale), h('p', {
         text: 'Detected from the words used, with or without tone marks. Same pipeline, ' + (r.locale_name || r.locale) + ' word lists from config.'

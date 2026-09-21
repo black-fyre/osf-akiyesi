@@ -43,6 +43,9 @@ templates.env.filters["age"] = _age_str
 templates.env.filters["date_only"] = lambda dt: dt.date().isoformat()
 
 config = get_config()
+from app.envfile import load_env_file  # noqa: E402
+
+load_env_file()
 llm = get_llm_client()
 store = make_store(":memory:")  # swap for FirestoreStore in production; see app/storage.py
 

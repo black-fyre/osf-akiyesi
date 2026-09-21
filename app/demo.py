@@ -505,13 +505,24 @@ def send_message(ctx, spec: Dict[str, Any]) -> Dict[str, Any]:
         "date": received_at.isoformat(),
     }
 
+    drain = getattr(ctx.llm, "drain_events", None)
     with ctx.lock:
+        if drain:
+            drain()  # start this message with a clean slate
         _, before = _normal_clusters(ctx, community)
         report = ingest.receive_webhook(payload, ctx.config, ctx.llm, ctx.store)
         reports_after, after = _normal_clusters(ctx, community)
+        events = drain() if drain else []
+    # Which reader handled the message, and any fallback or floor catch.
+    # Plain-language notes only: no message content, safe on either channel.
+    reader = {
+        "name": "Claude" if getattr(ctx.llm, "backend_name", "") == "claude" else "rule-based lists",
+        "model": getattr(ctx.llm, "model_name", "") or None,
+        "events": events,
+    }
 
     if report is None:
-        return {"processed": False, "note": "Logged for retry. The message is not lost."}
+        return {"processed": False, "note": "Logged for retry. The message is not lost.", "reader": reader}
 
     result: Dict[str, Any] = {
         "processed": True,
@@ -524,6 +535,7 @@ def send_message(ctx, spec: Dict[str, Any]) -> Dict[str, Any]:
         "date": received_at.date().isoformat(),
         "locale": report.locale_detected,
         "locale_name": ctx.config.locale_names.get(report.locale_detected, report.locale_detected),
+        "reader": reader,
     }
 
     if report.channel == "protected":
