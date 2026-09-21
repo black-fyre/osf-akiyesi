@@ -335,6 +335,12 @@ class DemoServerTests(unittest.TestCase):
     def setUp(self):
         _request(PORT_ON, "/demo/reset", {})
 
+    def test_landing_page_does_not_link_the_demo_screens(self):
+        # The screens are reached by URL; the landing page stays what a committee would see.
+        status, html = _request(PORT_ON, "/")
+        self.assertEqual(status, 200)
+        self.assertNotIn("/demo", html)
+
     def _send(self, **kw):
         body = {"community_id": "oke-ado-phase2", "resident": 1, "line": "normal", "days_ago": 0, "text": "hi"}
         body.update(kw)

@@ -145,7 +145,7 @@ def make_handler(ctx: AppContext):
             if path == "/":
                 return self._send(
                     200,
-                    render("index.html", communities=ctx.config.communities.values(), demo_mode=ctx.demo_mode),
+                    render("index.html", communities=ctx.config.communities.values()),
                 )
 
             if path == "/demo" and ctx.demo_mode:
