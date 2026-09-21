@@ -81,8 +81,9 @@ CLAUDE.md specifies FastAPI + Firestore + Claude via the Anthropic API on
 Cloud Run. This iteration was built in a sandbox with **no package-registry
 access** (pip/apt both blocked by network policy), so `app/` runs on the
 Python 3.10 standard library only -- `http.server` instead of FastAPI,
-SQLite instead of Firestore, a deterministic rule-based text processor
-instead of a live Claude call. Every interface is written to the shape the
+SQLite instead of Firestore. (It began with a rule-based text processor in
+place of Claude too; the app now reads messages with Claude by default, see
+"Reading with Claude" below.) Every interface is written to the shape the
 real dependency would need (`app/llm.py`'s `LLMClient` protocol and
 `AnthropicClient`; `app/storage.py`'s `Store` and the documented
 `FirestoreStore`; `app/main_fastapi.py` as an untested-but-structurally-
@@ -97,73 +98,61 @@ lists (Yoruba is read end to end, see below, but the lists were written for
 this build), real SMS-provider webhook signature verification, and Cloud
 Run/Terraform deployment config.
 
-`app/llm.py`'s `AnthropicClient` is now a real implementation (not a
-stub) -- see the next section for what "real" means here and what still
-needs to be verified on a machine with network access.
+### Reading with Claude
 
-### Real Claude API setup
+The app reads each message with Claude through the Anthropic API by
+default (`AKIYESI_LLM_BACKEND=anthropic_claude`). Claude does three jobs,
+each driven by a versioned prompt file: redaction (`prompts/redaction_v1.md`),
+the protected-channel check (`prompts/classification_v1.md`) and pattern
+matching (`prompts/extraction_v1.md`). Every reply is validated against the
+prompt's JSON contract before the pipeline uses it.
 
-`AKIYESI_LLM_BACKEND=rule_based` is the default and what the demo and the
-full test suite run on, deliberately, this close to the deadline -- the
-deterministic client is already tested and disclosed, and nothing about it
-changes below. `anthropic_claude` is additive and opt-in.
+The rule-based word lists in `config/` stay underneath, in two roles
+(`app/llm.py`, `GuardedClaudeClient`):
 
-`AnthropicClient` (`app/llm.py`) loads each of `prompts/redaction_v1.md`,
-`prompts/classification_v1.md` and `prompts/extraction_v1.md` as the
-system prompt for an Anthropic Messages API call, and validates the JSON
-that comes back before handing it to the rest of the pipeline. The
-prompt-loading, request-shaping and response-validation code is ordinary
-Python and is unit-tested two ways: `tests/test_llm_response_parsing.py`
-tests the response validation directly against shapes taken from each
-prompt file's own worked example (plus malformed variants), and
-`tests/test_llm_anthropic_client_wiring.py` swaps in a fake `anthropic`
-SDK to prove `AnthropicClient` calls it the way its documented contract
-requires.
+- **Floor.** The lists run over Claude's redaction, so anything on a list,
+  in English or Yoruba, is removed even if the model left it in. A message
+  either reader thinks is about the guards goes to the protected channel.
+  The model can widen protection, never narrow it.
+- **Fallback.** If a call fails (network, a 20-second timeout, a reply that
+  breaks the contract), that step uses the lists instead, so a message is
+  never lost to an API error mid-demo. The demo console shows each fallback
+  and each floor catch as a step in the trace.
 
-What is **not** tested: an actual network call to the Anthropic API. The
-`anthropic` package itself can't be `pip install`-ed in the sandbox this
-was built in -- no route to pypi.org (see `docs/ai-usage.md`) -- so the
-live API call has never been exercised from here. This is a narrower gap
-than it sounds, though: `api.anthropic.com` itself *is* reachable from
-this sandbox (a direct, unauthenticated request returns 401, a real and
-responsive endpoint) -- an earlier iteration of this module targeted
-Gemini via Vertex AI instead, where the host itself returned 403 and was
-fully unreachable. What's missing here is only the SDK package and a real
-API key, not network access to the host. Before trusting
-`AKIYESI_LLM_BACKEND=anthropic_claude` for a demo, run the smoke test
-yourself, on a machine where you can install the SDK:
+Two things are never a model call: the named-accusation check and the
+corroboration thresholds. Those are fixed rules, so the decisions with the
+most power over a person do not depend on a model's reading.
+
+The test suite always runs the rule-based reader (pinned in
+`tests/__init__.py`), so it is repeatable, offline and free. The Claude
+client's request shaping and reply validation are unit-tested against a
+fake SDK, and the fallback and floor against a fake Claude
+(`tests/test_claude_default.py`).
+
+Setup:
 
 ```bash
-# 1. Get an API key from https://console.anthropic.com/
-
-# 2. Install the production dependency (not needed for rule_based):
-pip install -r requirements.txt
-
-# 3. Point at your key:
-export AKIYESI_ANTHROPIC_API_KEY=<your-api-key>
-export AKIYESI_CLAUDE_MODEL=claude-sonnet-4-5-20250929  # optional, this is the default
-
-# 4. Run the smoke test -- three real calls, one per prompt, printing
-#    what came back next to what prompts/*.md's worked example expects:
-python3 scripts/smoke_test_claude.py
-
-# 5. Only once that looks right, run the app itself against Claude:
-export AKIYESI_LLM_BACKEND=anthropic_claude
-python3 -m app.server
+pip install -r requirements.txt          # installs the anthropic package
+cp .env.example .env                     # then put your key in AKIYESI_ANTHROPIC_API_KEY
+python3 scripts/smoke_test_claude.py     # three real calls, one per prompt
+python3 scripts/replay_demo_on_claude.py # every demo scene on Claude vs. its scripted outcome
+python3 -m app.server                    # reads .env itself; prints which reader is active
 ```
 
-If `claude-sonnet-4-5-20250929` isn't available to your key, pick any
-model listed at https://docs.claude.com/en/docs/about-claude/models and
-set `AKIYESI_CLAUDE_MODEL` accordingly.
+`python3 -m app.server` loads `.env` without overriding anything already
+exported, so `AKIYESI_LLM_BACKEND=rule_based python3 -m app.server` still
+runs the rule-based reader for one session. With no backend set and no key,
+the server warns and runs the rule-based reader, so a fresh clone still
+starts. If `claude-sonnet-4-5-20250929` isn't available to your key, set
+`AKIYESI_CLAUDE_MODEL` to one listed at
+https://docs.claude.com/en/docs/about-claude/models.
 
 ## Running it
 
-No install required for the demo or the tests -- everything below uses
-only the Python 3.10 standard library plus Jinja2 and PyYAML, which ship
-with this repo's target environment. If they're missing:
-`pip install -r requirements.txt` (only the `jinja2`/`pyyaml` lines are
-actually needed to run this iteration; the rest of that file is the
-production stack listed above).
+The tests need only the Python 3.10 standard library plus Jinja2 and
+PyYAML. Reading messages with Claude also needs the `anthropic` package and
+a key (see "Reading with Claude" above): `pip install -r requirements.txt`.
+Without a key the server runs the rule-based reader and says so.
 
 ```bash
 # run the desk + ingest server (http://127.0.0.1:8000)
@@ -228,7 +217,7 @@ The scenes live in `app/demo.py` as data, each with the outcome it is meant to
 produce, and `tests/test_demo_console.py` replays every scene through the real
 pipeline and checks that outcome, so the script cannot drift from the rules.
 
-Run the test suite (111 tests, covers every item in CLAUDE.md's "Tests that
+Run the test suite (147 tests, covers every item in CLAUDE.md's "Tests that
 must pass" list, plus the LLM response-parsing and Claude SDK-wiring tests
 described above):
 
@@ -271,8 +260,9 @@ app/
 config/                 communities, thresholds, patterns, redaction terms, accusation terms -- all data, no code
 prompts/                versioned LLM prompts (redaction, classification, extraction; en-NG + yo stub)
 seed/                   generate_seed.py, reports.json, bodija_scale_replay.json, replay.py
-scripts/smoke_test_claude.py   run this yourself against the real Anthropic API before trusting that backend for a demo
-tests/                  111 tests, one file per component, covering every CLAUDE.md-required test
+scripts/smoke_test_claude.py   three real Anthropic API calls, one per prompt
+scripts/replay_demo_on_claude.py   every demo scene on Claude, compared with its scripted outcome
+tests/                  147 tests, one file per component, covering every CLAUDE.md-required test
 docs/ai-usage.md         AI-usage log (what was delegated, what was rejected, a bug a test caught)
 ```
 

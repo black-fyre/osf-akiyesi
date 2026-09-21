@@ -422,7 +422,10 @@ def run(host: str = "127.0.0.1", port: int = 8000, db_path: str = "data/akiyesi.
     load_env_file()  # .env settings, without overriding anything already exported
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
     demo_mode = demo.demo_mode_from_env(default=True)
-    ctx = AppContext(store=make_store(db_path), demo_mode=demo_mode)
+    try:
+        ctx = AppContext(store=make_store(db_path), demo_mode=demo_mode)
+    except RuntimeError as exc:  # Claude asked for but not set up: say how to fix it, no traceback
+        raise SystemExit(f"Akiyesi could not start: {exc}\nOr run the rule-based reader: AKIYESI_LLM_BACKEND=rule_based python3 -m app.server")
     handler = make_handler(ctx)
     httpd = ThreadingHTTPServer((host, port), handler)
     print(f"Akiyesi desk running at http://{host}:{port}  (Ctrl+C to stop)")

@@ -352,6 +352,14 @@ class AnthropicClient:
         return parse_extraction_response(data, expected_pattern_ids=list(pattern_keywords.keys()))
 
 
+_CATEGORY_WORDS = {
+    "nationality": "nationality",
+    "ethnicity_tribe": "ethnic group",
+    "religion": "religion",
+    "stranger_or_foreigner_markers": "stranger wording",
+}
+
+
 class GuardedClaudeClient:
     """Claude, with the rule-based lists as a floor under it and a fallback
     behind it. This is what AKIYESI_LLM_BACKEND=anthropic_claude runs.
@@ -395,7 +403,7 @@ class GuardedClaudeClient:
         if extra:
             self._events.append(
                 "The word lists in config also removed something Claude left in ("
-                + ", ".join(c.replace("_", " ") for c in extra) + ")."
+                + ", ".join(_CATEGORY_WORDS.get(c, c) for c in extra) + ")."
             )
         return RedactionResult(redacted_text=floor.redacted_text, categories_redacted=categories + extra)
 

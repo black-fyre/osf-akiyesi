@@ -7,6 +7,56 @@ CLAUDE.md's AI-coding-usage section. Newest session first.
 
 ---
 
+## Session 8 -- 21 September 2026 (submission day, evening)
+
+**Delegated:** "switch to Claude". The author had been running the Claude
+backend by hand and wanted it to be the default.
+
+**Decision, and why it is not a straight swap.** Claude now reads every
+message by default, but the rule-based word lists were kept underneath in
+two roles (`GuardedClaudeClient`, `app/llm.py`):
+
+- **Floor.** The lists run over Claude's redaction, and either reader can
+  send a report to the protected channel. The model can widen protection,
+  never narrow it. Without this, switching to Claude would have quietly
+  switched off every list in `config/redaction_terms.yaml`, including the
+  Yoruba lists built in Session 7, because `AnthropicClient.redact` follows
+  its prompt and ignores the lists.
+- **Fallback.** Any failed call (network, a new 20-second timeout, a reply
+  that breaks the JSON contract) uses the lists for that one step. Before
+  this, an API error sent the message to the retry log and it vanished from
+  a live demo.
+
+The accusation check and the thresholds stay fixed rules, not model calls.
+The demo console shows "Read by Claude" and any floor catch or fallback as
+steps in the trace, so the audience can see which reader did what.
+
+**Smaller changes that the switch needed:** the server now loads `.env`
+itself (`app/envfile.py`), without overriding exported variables and
+without setting empty placeholders. An empty `AKIYESI_CONFIG_DIR=` in `.env`
+would otherwise have pointed the config loader at the current folder,
+which is why the author was told earlier not to `source .env`. With no
+backend set and no key, the server warns and runs the rules, so a fresh
+clone still starts. With Claude asked for and not set up, it stops with a
+one-line fix instead of a traceback. The test suite pins the rule-based
+reader (`tests/__init__.py`), so it stays repeatable, offline and free even
+from a shell with the Claude backend exported.
+
+**Rejected:** making the scene outcomes a test against live Claude. The
+readings vary and a test suite that calls a paid API is not repeatable.
+Instead `scripts/replay_demo_on_claude.py` replays every scene on Claude
+and reports any that land differently, to run before a recording.
+
+**Not verified here:** a live Claude call. This workspace cannot install
+the `anthropic` package on the author's machine, and the key was not copied
+into the cloud workspace. The author has run the Claude backend live
+locally; the floor and fallback were checked against a fake Claude, in
+tests (`tests/test_claude_default.py`, 12 tests) and in a headless browser
+(a floor catch of "Hausa" that the fake missed, and a timeout fallback).
+The suite is 147 tests and passes.
+
+---
+
 ## Session 7 -- 21 September 2026 (submission day, later)
 
 **Delegated:** two requests from the author, in this order. First, a simpler
