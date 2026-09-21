@@ -64,8 +64,8 @@ collect tips and push information back out.
 
 That system is live now. Three gaps, one feature each:
 
-1. **Coverage.** It runs on WhatsApp. Roughly 55 to 60 percent of adults in the
-   South West have no smartphone. The people closest to the raw information are
+1. **Coverage.** It runs on WhatsApp. Pew's most recent global survey (2023) found that fewer than half of
+   Nigerian adults own a smartphone. The people closest to the raw information are
    exactly the ones excluded: night guards, okada riders, street traders, artisans,
    domestic staff. They see the street at 2am and they are not in the group.
    → **SMS and voice intake.**
