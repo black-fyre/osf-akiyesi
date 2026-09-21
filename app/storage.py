@@ -65,6 +65,12 @@ CREATE TABLE IF NOT EXISTS audit_log (
 """
 
 
+# What inbound_log.raw_payload holds once a message has been processed. The
+# retry log exists only so an unprocessed message is not lost; once the
+# report is stored the payload has no further use, so it is not kept.
+_SCRUBBED_PAYLOAD = {"scrubbed": True}
+
+
 class Store:
     """SQLite-backed store. One instance per process/test; thread-safe
     via a lock since the stdlib http.server demo uses a threading server.
@@ -103,11 +109,25 @@ class Store:
             )
 
     def mark_inbound_status(self, entry_id: str, status: str, error: Optional[str] = None) -> None:
+        """Update a log row's status.
+
+        Marking a row 'processed' also replaces its payload with a stub, in the
+        same UPDATE, so the original message text is never kept once the
+        redacted report is stored. 'received' and 'failed' rows keep the
+        payload (already phone-number-free, see app/ingest.py) because a retry
+        needs it.
+        """
         with self._cursor() as cur:
-            cur.execute(
-                "UPDATE inbound_log SET status = ?, error = ? WHERE id = ?",
-                (status, error, entry_id),
-            )
+            if status == "processed":
+                cur.execute(
+                    "UPDATE inbound_log SET status = ?, error = ?, raw_payload = ? WHERE id = ?",
+                    (status, error, json.dumps(_SCRUBBED_PAYLOAD), entry_id),
+                )
+            else:
+                cur.execute(
+                    "UPDATE inbound_log SET status = ?, error = ? WHERE id = ?",
+                    (status, error, entry_id),
+                )
 
     def pending_inbound(self) -> List[InboundLogEntry]:
         with self._cursor() as cur:
@@ -242,7 +262,8 @@ def make_store(path: str = ":memory:") -> Store:
 # to install google-cloud-firestore; see docs/ai-usage.md). To deploy for
 # real: implement the same method surface as Store above
 # (save_report/reports_for_community/save_audit_entry/audit_log_for_community/
-# log_inbound/pending_inbound/mark_inbound_status), backed by three
+# log_inbound/pending_inbound/mark_inbound_status -- which must also drop
+# the stored payload when a row is marked 'processed'), backed by three
 # collections -- "reports", "audit_log", "inbound_log" -- keyed by the same
 # `id` field, with community_id as a top-level field so
 # `.where("community_id", "==", ...)` replaces the SQL WHERE clauses above.

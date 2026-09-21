@@ -40,7 +40,7 @@ class MissingFieldError(ValueError):
 @dataclass(frozen=True)
 class InboundPayload:
     to: str
-    sender: str
+    sender_hash: str  # salted hash of the sender's phone number; the number itself is never kept
     text: str
     external_message_id: Optional[str]
     locale_hint: Optional[str]
@@ -51,8 +51,17 @@ def parse_payload(raw: Dict[str, Any]) -> InboundPayload:
     to = raw.get("to") or raw.get("destination") or raw.get("shortCode")
     sender = raw.get("from") or raw.get("sender")
     text = raw.get("text") or raw.get("message")
-    if not to or not sender or not text:
-        raise MissingFieldError(f"payload missing required field(s) (to/from/text): {raw!r}")
+    # app/ingest.py swaps the phone number for its hash before a payload is
+    # logged or processed, so a retried payload arrives here already hashed.
+    # Payloads handed straight to process_inbound (tests, seed replay) still
+    # carry the number, which is hashed here and goes no further.
+    sender_hash = raw.get("sender_hash") or (hash_sender(str(sender)) if sender else None)
+    missing = [name for name, value in (("to", to), ("from", sender_hash), ("text", text)) if not value]
+    if missing:
+        # Names the missing fields only. Never echo the payload: this message
+        # is stored in inbound_log.error, and the payload holds the sender
+        # and the original text.
+        raise MissingFieldError(f"payload missing required field(s): {', '.join(missing)}")
 
     received_at = utcnow()
     if raw.get("date"):
@@ -63,7 +72,7 @@ def parse_payload(raw: Dict[str, Any]) -> InboundPayload:
 
     return InboundPayload(
         to=str(to),
-        sender=str(sender),
+        sender_hash=str(sender_hash),
         text=str(text),
         external_message_id=raw.get("id"),
         locale_hint=raw.get("locale"),
@@ -113,7 +122,7 @@ def process_inbound(raw_payload: Dict[str, Any], config: AppConfig, llm: LLMClie
         external_message_id=payload.external_message_id,
         community_id=community.id,
         channel=channel,
-        sender_hash=hash_sender(payload.sender),
+        sender_hash=payload.sender_hash,
         redacted_text=redacted.text,
         categories_redacted=redacted.categories_redacted,
         pattern_id=extraction.pattern_id,
