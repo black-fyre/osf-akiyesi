@@ -1,0 +1,556 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Àkíyèsí presenter remote</title>
+{% raw %}
+<style>
+  :root {
+    --ink: #1b1b1b; --paper: #fafaf8; --card: #ffffff; --line: #dcdad2; --muted: #666459; --soft: #f0efe9;
+    --watch-bg: #fff3cd; --watch-fg: #7a5b00;
+    --ready-bg: #ffd7d7; --ready-fg: #7a0000;
+    --block-bg: #e0d4ff; --block-fg: #3c1b7a;
+    --done-bg: #d6f5d6; --done-fg: #0a5c0a;
+    --below-bg: #eeede7; --below-fg: #555;
+    --protect: #24506b; --protect-bg: #e1eef6;
+    --radius: .55rem;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: var(--ink); background: var(--paper); line-height: 1.4; }
+  h1, h2, h3, p, ul, ol { margin: 0; }
+  button, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  button:focus-visible, select:focus-visible, textarea:focus-visible, a:focus-visible { outline: 3px solid #2b6cb0; outline-offset: 2px; }
+  .muted { color: var(--muted); }
+  kbd { font-family: inherit; font-size: .78rem; border: 1px solid #aaa; border-bottom-width: 2px; border-radius: .3rem; padding: 0 .35rem; background: #fff; color: var(--ink); }
+
+  /* top bar */
+  .top { display: flex; align-items: center; gap: .6rem 1rem; flex-wrap: wrap; padding: .65rem 1.1rem; background: var(--ink); color: #fff; }
+  .brand { display: flex; align-items: baseline; gap: .55rem; margin-right: auto; }
+  .brand h1 { font-size: 1.2rem; }
+  .brand span { color: #b9b7ad; font-size: .92rem; }
+  .links { display: flex; gap: .4rem; flex-wrap: wrap; }
+  .tbtn { background: transparent; color: #fff; border: 1px solid #666; border-radius: .35rem; padding: .3rem .65rem; font-size: .86rem; text-decoration: none; display: inline-block; }
+  .tbtn:hover { background: #333; }
+  .tbtn.primary { background: #fff; color: var(--ink); border-color: #fff; font-weight: 650; }
+  .tbtn.primary:hover { background: #e9e8e2; }
+  .tbtn.armed { background: #7a0000; border-color: #b33; }
+
+  /* last-sent strip */
+  .now { position: sticky; top: 0; z-index: 5; background: var(--paper); border-bottom: 1px solid var(--line); padding: .6rem 1.1rem; }
+  .now-card { background: var(--card); border: 1px solid var(--ink); border-left-width: 6px; border-radius: var(--radius); padding: .55rem .85rem; display: grid; gap: .2rem; }
+  .now-card.ok { border-left-color: var(--done-fg); }
+  .now-card.watch { border-left-color: #c79a12; }
+  .now-card.ready { border-left-color: var(--ready-fg); }
+  .now-card.block { border-left-color: var(--block-fg); }
+  .now-card.stop { border-left-color: var(--ready-fg); }
+  .now-card.protect { border-left-color: var(--protect); }
+  .now-card.muted { border-left-color: #aaa; }
+  .now-title { font-weight: 700; font-size: 1rem; }
+  .now-detail { font-size: .9rem; color: #333; }
+  .now-point { font-size: .9rem; }
+  .now-point b { font-size: .72rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin-right: .35rem; }
+  .next-row { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; margin-top: .45rem; font-size: .85rem; color: var(--muted); }
+  .next-row .btn { font-size: .88rem; }
+
+  /* layout */
+  .wrap { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 1rem; padding: .9rem 1.1rem 2rem; align-items: start; }
+  @media (max-width: 900px) { .wrap { grid-template-columns: 1fr; } }
+  .col-title { font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: .2rem 0 .5rem; font-weight: 650; }
+  .col-title.gap { margin-top: 1.1rem; }
+
+  .btn { background: var(--ink); color: #fff; border: 1px solid var(--ink); border-radius: .4rem; padding: .35rem .8rem; font-size: .86rem; font-weight: 600; white-space: nowrap; }
+  .btn:hover { background: #333; }
+  .btn.secondary { background: #fff; color: var(--ink); }
+  .btn.secondary:hover { background: var(--soft); }
+  .btn.safe { background: var(--protect); border-color: var(--protect); }
+  .btn[disabled] { opacity: .45; cursor: default; }
+
+  /* groups */
+  .groups { display: grid; gap: .75rem; }
+  .group { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: .75rem .85rem; display: grid; gap: .5rem; }
+  .group.done { background: #f6f6f2; }
+  .group.done .msgs, .group.done .say { opacity: .6; }
+  .g-head { display: flex; align-items: center; gap: .55rem; flex-wrap: wrap; }
+  .num { width: 1.6rem; height: 1.6rem; border-radius: 50%; background: var(--ink); color: #fff; display: grid; place-items: center; font-size: .8rem; font-weight: 700; flex: none; }
+  .group.extra .num { background: #fff; color: var(--ink); border: 1px solid var(--ink); }
+  .group.done .num { background: var(--done-bg); color: var(--done-fg); border: 0; }
+  .g-head h2 { font-size: 1rem; }
+  .tag { font-size: .74rem; border: 1px solid var(--line); border-radius: 999px; padding: .05rem .5rem; color: var(--muted); background: #fff; }
+  .g-head .btn { margin-left: auto; }
+  .beat { font-size: .92rem; }
+  .say { list-style: none; padding: .45rem .6rem; background: #fffbea; border: 1px dashed #e3cf8f; border-radius: .4rem; display: grid; gap: .15rem; font-size: .86rem; color: #4d3f00; }
+  .say li::before { content: "▸ "; color: #b08a12; }
+  .say .lbl { font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; color: #8a7318; font-weight: 700; }
+  .say li.lbl::before { content: ""; }
+  .msgs { list-style: none; padding: 0; display: grid; gap: .35rem; }
+  .msg { display: grid; grid-template-columns: 1fr auto; gap: .6rem; align-items: center; border: 1px solid var(--line); border-radius: .45rem; padding: .4rem .55rem; }
+  .msg.sent { background: var(--soft); }
+  .msg .meta { font-size: .74rem; color: var(--muted); display: flex; gap: .45rem; flex-wrap: wrap; align-items: center; }
+  .msg .meta .line-safe { color: #fff; background: var(--protect); border-radius: .25rem; padding: 0 .35rem; font-weight: 650; }
+  .msg .meta .tick { color: var(--done-fg); font-weight: 700; }
+  .msg .txt { font-size: .9rem; }
+  .msg .acts { display: flex; gap: .3rem; }
+  .icon-btn { background: #fff; border: 1px solid var(--line); border-radius: .4rem; padding: .3rem .5rem; font-size: .8rem; color: var(--muted); }
+  .icon-btn:hover { border-color: var(--ink); color: var(--ink); }
+
+  /* side */
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: .8rem; display: grid; gap: .55rem; }
+  .field label { display: block; font-size: .72rem; color: var(--muted); margin-bottom: .15rem; }
+  .field select { width: 100%; background: #fff; border: 1px solid var(--line); border-radius: .35rem; padding: .3rem .35rem; font-size: .86rem; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: .45rem; }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--ink); border-radius: .4rem; overflow: hidden; }
+  .seg button { background: #fff; border: 0; padding: .35rem .4rem; font-size: .82rem; }
+  .seg button[aria-pressed="true"] { background: var(--ink); color: #fff; }
+  .seg button.safe[aria-pressed="true"] { background: var(--protect); }
+  #free-text { width: 100%; min-height: 5.5rem; resize: vertical; border: 1px solid var(--line); border-radius: .4rem; padding: .45rem; font-size: .9rem; }
+  .send-row { display: flex; justify-content: space-between; align-items: center; gap: .5rem; font-size: .76rem; color: var(--muted); }
+  .crib { display: grid; gap: .55rem; font-size: .86rem; }
+  .crib h3 { font-size: .74rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); }
+  .crib ul { padding-left: 1.05rem; display: grid; gap: .15rem; }
+  .keys { font-size: .8rem; color: var(--muted); display: grid; gap: .2rem; }
+  .err { color: var(--ready-fg); }
+</style>
+{% endraw %}
+</head>
+<body>
+<header class="top">
+  <div class="brand"><h1>Àkíyèsí</h1><span>presenter remote</span></div>
+  <nav class="links" aria-label="Open the app">
+    <a class="tbtn primary" href="/demo" target="akiyesi-main">Main screen ↗</a>
+    <a class="tbtn" id="link-desk" href="/desk" target="akiyesi-desk">Desk ↗</a>
+    <a class="tbtn" id="link-inbox" href="/protected-outbox" target="akiyesi-desk">Landlord inbox ↗</a>
+    <button class="tbtn" id="reset" type="button">Reset demo</button>
+  </nav>
+</header>
+
+<section class="now" aria-live="polite">
+  <div class="now-card" id="now-card">
+    <p class="now-title" id="now-title">Pick a message. It lands on the main screen straight away.</p>
+    <p class="now-detail" id="now-detail">Open the main screen on the projector with the button above, keep this page on your own screen, and talk over it.</p>
+    <p class="now-point" id="now-point" hidden></p>
+  </div>
+  <div class="next-row">
+    <button class="btn" id="send-next" type="button">Send next in story</button>
+    <span id="next-label"></span>
+  </div>
+</section>
+
+<main class="wrap">
+  <section>
+    <h2 class="col-title">The story, in order</h2>
+    <div class="groups" id="story"></div>
+    <h2 class="col-title gap">For questions from the floor</h2>
+    <div class="groups" id="extras"></div>
+  </section>
+
+  <aside>
+    <h2 class="col-title">Write your own</h2>
+    <div class="panel">
+      <div class="field"><label for="free-community">Community</label><select id="free-community"></select></div>
+      <div class="seg" role="group" aria-label="Line">
+        <button type="button" id="free-normal" aria-pressed="true">Report line</button>
+        <button type="button" id="free-safe" class="safe" aria-pressed="false">SAFE line</button>
+      </div>
+      <div class="row2">
+        <div class="field"><label for="free-resident">From</label><select id="free-resident"></select></div>
+        <div class="field"><label for="free-days">Sent (demo clock)</label><select id="free-days"></select></div>
+      </div>
+      <textarea id="free-text" aria-label="Message" placeholder="Describe what you saw, not who you think they are."></textarea>
+      <div class="send-row"><span><kbd>Ctrl</kbd>+<kbd>Enter</kbd> to send</span><button class="btn" id="free-send" type="button">Send SMS</button></div>
+    </div>
+
+    <h2 class="col-title gap">Crib sheet</h2>
+    <div class="panel crib">
+      <div>
+        <h3>The numbers (read from config)</h3>
+        <ul>
+          <li>Watch: {{ numbers.watch.senders }} people across {{ numbers.watch.days }} days</li>
+          <li>Escalate: {{ numbers.escalate.senders }} people across {{ numbers.escalate.days }} days</li>
+          <li>Weapon: watch at {{ numbers.weapon_watch.senders }}, escalate at {{ numbers.weapon_escalate.senders }} people over {{ numbers.weapon_escalate.days }} day{{ '' if numbers.weapon_escalate.days == 1 else 's' }}</li>
+          <li>SAFE line: threshold 1, labelled uncorroborated</li>
+          <li>Profiling guard: over {{ numbers.profiling_pct }}% redacted is held</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Lines to land</h3>
+        <ul>
+          <li>Community early warning, not crime reporting</li>
+          <li>An aggregation tool, not a reporting tool</li>
+          <li>No public map, no public list, no enforcement power</li>
+          <li>Desk sees day-level dates only, never who sent it</li>
+          <li>Every escalation is a person's decision, on the audit log</li>
+          <li>Referral brief is the bridge to Amotekun, a state outfit</li>
+        </ul>
+      </div>
+      <div>
+        <h3>If Ushahidi comes up</h3>
+        <ul>
+          <li>They publish a public map. This refuses to publish</li>
+          <li>They collect reports. This aggregates signals too weak to report</li>
+          <li>They take text as given. This strips identity first</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Context</h3>
+        <ul>
+          <li>55 to 60% of South West adults have no smartphone</li>
+          <li>Closest to the street at 2am, and not in the WhatsApp group</li>
+          <li>Honest cost: one committee and one number per community</li>
+          <li>Yorùbá word lists still need a fluent speaker's review per community</li>
+        </ul>
+      </div>
+      <div class="keys">
+        <span><kbd>N</kbd> send next in story</span>
+        <span><kbd>M</kbd> bring the main screen forward</span>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<script id="boot" type="application/json">{{ boot|tojson }}</script>
+{% raw %}
+<script>
+(function () {
+  'use strict';
+  var boot = JSON.parse(document.getElementById('boot').textContent);
+  var STORE_KEY = 'akiyesi-remote-sent-v1';
+  var STATUS = {
+    below_threshold: 'Below threshold',
+    watch: 'Watch',
+    escalate_ready: 'Ready for a human decision',
+    escalate_blocked_profiling: 'Held: profiling check',
+    escalated: 'Escalated'
+  };
+  var CATEGORY = {
+    nationality: 'nationality',
+    ethnicity_tribe: 'ethnic group',
+    religion: 'religion',
+    stranger_or_foreigner_markers: 'stranger or foreigner wording'
+  };
+
+  var $ = function (id) { return document.getElementById(id); };
+  function h(tag, props, kids) {
+    var node = document.createElement(tag);
+    if (props) Object.keys(props).forEach(function (k) {
+      if (k === 'class') node.className = props[k];
+      else if (k === 'text') node.textContent = props[k];
+      else if (k.slice(0, 2) === 'on') node.addEventListener(k.slice(2), props[k]);
+      else node.setAttribute(k, props[k]);
+    });
+    (kids || []).forEach(function (k) {
+      if (k == null) return;
+      node.appendChild(typeof k === 'string' ? document.createTextNode(k) : k);
+    });
+    return node;
+  }
+  function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+  function unitFor(n, unit) { return n === 1 ? unit.replace(/s$/, '') : unit; }
+  function dayLabel(n) { return n === 0 ? 'now' : n === 1 ? '1 day ago' : n + ' days ago'; }
+  function shortName(c) { return c ? c.name.replace(/ Residents Association$/, '') : ''; }
+  function communityById(id) { return boot.communities.filter(function (c) { return c.id === id; })[0]; }
+  function residentLabel(id) {
+    var r = boot.residents.filter(function (x) { return x.id === id; })[0];
+    return r ? r.label : 'Resident ' + id;
+  }
+
+  // Another tab (the main screen, the desk) listens on this channel and
+  // redraws the moment a message lands. Without BroadcastChannel those
+  // pages still pick it up when they regain focus.
+  var channel = null;
+  try { channel = new BroadcastChannel('akiyesi-demo'); } catch (e) { channel = null; }
+  function announce(msg) { try { if (channel) channel.postMessage(msg); } catch (e) { /* the main screen refreshes on focus */ } }
+
+  var sent = {};
+  try { sent = JSON.parse(localStorage.getItem(STORE_KEY) || '{}') || {}; } catch (e) { sent = {}; }
+  function saveSent() { try { localStorage.setItem(STORE_KEY, JSON.stringify(sent)); } catch (e) { /* ticks only last this page view */ } }
+
+  var busy = false;
+  var freeLine = 'normal';
+  var armedReset = null;
+  var groupNodes = {};
+
+  /* ---------- result strip ---------- */
+  function describe(r, group) {
+    var d = describeCore(r, group);
+    if (r.locale && r.locale !== 'en-NG') d.title = 'Read as ' + (r.locale_name || r.locale) + '. ' + d.title;
+    return d;
+  }
+  function describeCore(r, group) {
+    if (!r.processed) return { tone: 'muted', title: 'Logged for retry', detail: r.note || 'The message is not lost.' };
+    if (r.channel === 'protected') {
+      if (r.status === 'rejected_targeting') return { tone: 'stop', title: 'Refused on the SAFE line', detail: 'It named and accused a person, so it goes nowhere.' };
+      return {
+        tone: 'protect',
+        title: r.rerouted ? 'Rerouted to the SAFE line, then to the landlord association' : 'Delivered to the landlord association',
+        detail: r.rerouted
+          ? 'It came in on the report line but is about the guards, so the system moved it on its own. The desk never sees it.'
+          : 'Labelled uncorroborated. The desk never sees it, and the main screen shows a count, not the text.'
+      };
+    }
+    if (r.status === 'rejected_targeting') {
+      return { tone: 'stop', title: 'Refused: it names a person', detail: String(r.rejection_reason || '').split(' Excluded from clustering')[0] };
+    }
+    var cats = (r.categories_redacted || []).map(function (c) { return CATEGORY[c] || c; });
+    var stripped = cats.length ? 'Identity removed: ' + cats.join(', ') + '. ' : '';
+    if (r.pattern_id === 'unclassified') return { tone: 'muted', title: 'Stored as noise, not counted', detail: stripped + 'No known pattern, so it cannot inflate one.' };
+    var cl = r.cluster;
+    if (!cl) return { tone: 'ok', title: 'Counted toward ' + r.pattern_name, detail: stripped };
+    var tone = { watch: 'watch', escalate_ready: 'ready', escalate_blocked_profiling: 'block', escalated: 'ok', below_threshold: 'muted' }[cl.status] || 'ok';
+    var moved = r.previous_status && r.previous_status !== cl.status ? ' (was ' + (STATUS[r.previous_status] || r.previous_status) + ')' : '';
+    return {
+      tone: tone,
+      title: r.pattern_name + ': ' + (STATUS[cl.status] || cl.status) + moved,
+      detail: stripped + cl.distinct_senders + ' ' + unitFor(cl.distinct_senders, 'senders') + ' over ' + cl.span_days + ' ' + unitFor(cl.span_days, 'days') +
+        '. Escalates at ' + cl.escalate.senders + ' ' + unitFor(cl.escalate.senders, 'senders') + ' over ' + cl.escalate.days + ' ' + unitFor(cl.escalate.days, 'days') + '.'
+    };
+  }
+
+  function showResult(d, point) {
+    $('now-card').className = 'now-card ' + d.tone;
+    $('now-title').textContent = d.title;
+    $('now-detail').textContent = d.detail || '';
+    var p = $('now-point');
+    clear(p);
+    if (point) { p.appendChild(h('b', { text: 'Point at' })); p.appendChild(document.createTextNode(point)); p.hidden = false; }
+    else p.hidden = true;
+  }
+  function showError(text) {
+    showResult({ tone: 'stop', title: 'Not sent', detail: text }, null);
+  }
+
+  /* ---------- sending ---------- */
+  function send(body, group) {
+    if (busy) return Promise.resolve(null);
+    busy = true;
+    document.body.setAttribute('aria-busy', 'true');
+    return fetch('/demo/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      .then(function (res) { return res.json().then(function (j) { return { ok: res.ok, json: j }; }); })
+      .then(function (res) {
+        if (!res.ok) { showError(res.json.error || 'The message could not be sent.'); return null; }
+        announce({
+          type: 'sent',
+          community_id: body.community_id,
+          text: body.text,
+          line: body.line,
+          resident_label: residentLabel(body.resident),
+          result: res.json
+        });
+        showResult(describe(res.json, group), group ? group.watch_for : null);
+        updateLinks(body.community_id);
+        return res.json;
+      })
+      .catch(function () { showError('The server did not answer. Is it still running?'); return null; })
+      .then(function (out) { busy = false; document.body.removeAttribute('aria-busy'); return out; });
+  }
+
+  function msgKey(group, i) { return group.id + ':' + i; }
+
+  function sendTemplate(group, i) {
+    var m = group.messages[i];
+    return send({ community_id: group.community_id, resident: m.resident, line: m.line, days_ago: m.days_ago, text: m.text }, group)
+      .then(function (r) {
+        if (!r) return;
+        sent[msgKey(group, i)] = true;
+        saveSent();
+        renderGroup(group);
+        renderNext();
+      });
+  }
+
+  function firstUnsent(group) {
+    for (var i = 0; i < group.messages.length; i++) if (!sent[msgKey(group, i)]) return i;
+    return -1;
+  }
+  function nextInStory() {
+    var story = boot.groups.filter(function (g) { return !g.extra; });
+    for (var i = 0; i < story.length; i++) {
+      var j = firstUnsent(story[i]);
+      if (j >= 0) return { group: story[i], index: j, number: i + 1 };
+    }
+    return null;
+  }
+  function renderNext() {
+    var n = nextInStory();
+    $('send-next').disabled = !n;
+    if (!n) { $('next-label').textContent = 'Story complete. Reset to run it again.'; return; }
+    var m = n.group.messages[n.index];
+    $('next-label').textContent = n.number + '. ' + n.group.title + ', message ' + (n.index + 1) + ' of ' + n.group.messages.length + ': "' + (m.text.length > 70 ? m.text.slice(0, 67) + '...' : m.text) + '"';
+  }
+  function sendNext() {
+    var n = nextInStory();
+    if (n) sendTemplate(n.group, n.index);
+  }
+
+  /* ---------- library ---------- */
+  function renderGroup(group) {
+    var node = groupNodes[group.id];
+    var comm = communityById(group.community_id);
+    var unsent = firstUnsent(group);
+    clear(node.el);
+    node.el.className = 'group' + (group.extra ? ' extra' : '') + (unsent < 0 ? ' done' : '');
+
+    var head = h('div', { class: 'g-head' }, [
+      h('span', { class: 'num', text: unsent < 0 ? '✓' : node.label }),
+      h('h2', { text: group.title }),
+      h('span', { class: 'tag', text: shortName(comm) })
+    ]);
+    if (group.messages.length > 1) {
+      head.appendChild(h('button', {
+        class: 'btn secondary', type: 'button', text: unsent < 0 ? 'All sent' : 'Send next (' + (unsent + 1) + '/' + group.messages.length + ')',
+        onclick: function () { var j = firstUnsent(group); if (j >= 0) sendTemplate(group, j); }
+      }));
+      if (unsent < 0) head.lastChild.disabled = true;
+    }
+    node.el.appendChild(head);
+    node.el.appendChild(h('p', { class: 'beat', text: group.beat }));
+
+    if (group.talking_points && group.talking_points.length) {
+      var say = h('ul', { class: 'say' }, [h('li', { class: 'lbl', text: 'Say' })]);
+      group.talking_points.forEach(function (t) { say.appendChild(h('li', { text: t })); });
+      node.el.appendChild(say);
+    }
+
+    var list = h('ol', { class: 'msgs' });
+    group.messages.forEach(function (m, i) {
+      var done = !!sent[msgKey(group, i)];
+      var meta = h('div', { class: 'meta' }, [
+        h('span', { text: residentLabel(m.resident) }),
+        h('span', { text: '· ' + dayLabel(m.days_ago) }),
+        m.line === 'safe' ? h('span', { class: 'line-safe', text: 'SAFE line' }) : null,
+        done ? h('span', { class: 'tick', text: '✓ sent' }) : null
+      ]);
+      list.appendChild(h('li', { class: 'msg' + (done ? ' sent' : '') }, [
+        h('div', {}, [meta, h('div', { class: 'txt', text: m.text })]),
+        h('div', { class: 'acts' }, [
+          h('button', { class: 'icon-btn', type: 'button', title: 'Copy into Write your own, to edit first', text: 'Edit', onclick: function () { loadIntoComposer(group, m); } }),
+          h('button', { class: 'btn' + (m.line === 'safe' ? ' safe' : ''), type: 'button', text: done ? 'Resend' : 'Send', onclick: function () { sendTemplate(group, i); } })
+        ])
+      ]));
+    });
+    node.el.appendChild(list);
+  }
+
+  function buildLibrary() {
+    var n = 0;
+    boot.groups.forEach(function (g) {
+      var el = h('article', {});
+      groupNodes[g.id] = { el: el, label: g.extra ? 'Q' : String(++n) };
+      (g.extra ? $('extras') : $('story')).appendChild(el);
+      renderGroup(g);
+    });
+  }
+
+  /* ---------- write your own ---------- */
+  function setFreeLine(which) {
+    freeLine = which;
+    $('free-normal').setAttribute('aria-pressed', which === 'normal' ? 'true' : 'false');
+    $('free-safe').setAttribute('aria-pressed', which === 'safe' ? 'true' : 'false');
+    $('free-send').className = 'btn' + (which === 'safe' ? ' safe' : '');
+  }
+  function loadIntoComposer(group, m) {
+    $('free-community').value = group.community_id;
+    $('free-resident').value = String(m.resident);
+    $('free-days').value = String(Math.min(6, Math.round(m.days_ago)));
+    setFreeLine(m.line);
+    $('free-text').value = m.text;
+    $('free-text').focus();
+  }
+  function freeSend() {
+    var text = $('free-text').value.trim();
+    if (!text) { $('free-text').focus(); return; }
+    var sel = $('free-resident');
+    send({
+      community_id: $('free-community').value,
+      resident: parseInt(sel.value, 10),
+      line: freeLine,
+      days_ago: parseInt($('free-days').value, 10),
+      text: text
+    }, null).then(function (r) {
+      if (!r) return;
+      $('free-text').value = '';
+      sel.selectedIndex = (sel.selectedIndex + 1) % sel.options.length;  // a new voice each time
+    });
+  }
+  function buildComposer() {
+    boot.communities.forEach(function (c) { $('free-community').appendChild(h('option', { value: c.id, text: shortName(c) })); });
+    boot.residents.forEach(function (r) { $('free-resident').appendChild(h('option', { value: String(r.id), text: r.label })); });
+    for (var d = 0; d <= 6; d++) $('free-days').appendChild(h('option', { value: String(d), text: d === 0 ? 'Now' : dayLabel(d) }));
+    $('free-text').setAttribute('maxlength', String(boot.maxTextLength));
+    $('free-normal').addEventListener('click', function () { setFreeLine('normal'); });
+    $('free-safe').addEventListener('click', function () { setFreeLine('safe'); });
+    $('free-send').addEventListener('click', freeSend);
+    $('free-community').addEventListener('change', function () { updateLinks($('free-community').value); });
+    $('free-text').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); freeSend(); }
+    });
+    setFreeLine('normal');
+  }
+
+  function updateLinks(cid) {
+    var q = '?community=' + encodeURIComponent(cid);
+    $('link-desk').href = '/desk' + q;
+    $('link-inbox').href = '/protected-outbox' + q;
+  }
+
+  /* ---------- reset ---------- */
+  function resetDemo() {
+    var b = $('reset');
+    if (!armedReset) {
+      b.textContent = 'Click again to wipe all data';
+      b.classList.add('armed');
+      armedReset = setTimeout(disarm, 3500);
+      return;
+    }
+    disarm();
+    fetch('/demo/reset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+      .then(function (res) {
+        if (!res.ok) throw new Error('reset failed');
+        sent = {};
+        saveSent();
+        boot.groups.forEach(renderGroup);
+        renderNext();
+        announce({ type: 'reset' });
+        showResult({ tone: 'ok', title: 'Clean slate', detail: 'All data wiped. The main screen has been cleared too.' }, null);
+      })
+      .catch(function () { showError('Reset did not go through. Is the server still running?'); });
+  }
+  function disarm() {
+    clearTimeout(armedReset); armedReset = null;
+    var b = $('reset'); b.textContent = 'Reset demo'; b.classList.remove('armed');
+  }
+
+  // Bring the main screen forward without reloading it, so its trace stays.
+  function focusMain() {
+    var w = window.open('', 'akiyesi-main');
+    if (!w) return;
+    try { if (w.location.href === 'about:blank') w.location.href = '/demo'; } catch (e) { /* not ours to read */ }
+    w.focus();
+  }
+
+  /* ---------- wiring ---------- */
+  $('send-next').addEventListener('click', sendNext);
+  $('reset').addEventListener('click', resetDemo);
+  document.addEventListener('keydown', function (e) {
+    var tag = (e.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === 'n' || e.key === 'N') { e.preventDefault(); sendNext(); }
+    if (e.key === 'm' || e.key === 'M') { e.preventDefault(); focusMain(); }
+  });
+  // Buttons should not keep focus, or Enter/Space would press them again.
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('button');
+    if (b) setTimeout(function () { b.blur(); }, 0);
+  });
+
+  buildComposer();
+  buildLibrary();
+  renderNext();
+  updateLinks(boot.groups[0] ? boot.groups[0].community_id : boot.communities[0].id);
+})();
+</script>
+{% endraw %}
+</body>
+</html>

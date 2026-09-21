@@ -42,6 +42,19 @@
     </nav>
   </header>
   {% block content %}{% endblock %}
+  {% if demo_live %}
+  <script>
+    // Demo mode only: when the presenter remote sends a message, reload so
+    // the desk shows it. Skipped while someone is typing in a form here.
+    (function () {
+      function reloadIfIdle() {
+        var a = document.activeElement, tag = a ? a.tagName.toLowerCase() : '';
+        if (tag !== 'input' && tag !== 'textarea' && tag !== 'select') location.reload();
+      }
+      try { new BroadcastChannel('akiyesi-demo').onmessage = reloadIfIdle; } catch (e) {}
+    })();
+  </script>
+  {% endif %}
   <footer>No public map. No public list. No enforcement power. This view never shows protected-channel reports or timestamps finer than a day.</footer>
 </body>
 </html>

@@ -17,6 +17,13 @@ Routes:
   GET  /desk/audit?community=<id>           audit trail
   GET  /protected-outbox?community=<id>     landlord association's separate inbox
   GET  /healthz                             liveness check
+
+Demo console (only when AppContext.demo_mode is on; 404 otherwise, see app/demo.py):
+  GET  /demo                                the console page
+  GET  /demo/remote                         presenter remote: one-click messages and talking points
+  GET  /demo/state?community=<id>           signal board data (normal channel only)
+  POST /demo/send                           send one message through the real webhook path
+  POST /demo/reset                          wipe all data, for replaying a demo
 """
 from __future__ import annotations
 
@@ -30,7 +37,7 @@ from urllib.parse import parse_qs, urlparse
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from app import audit, clustering, ingest, referral
+from app import audit, clustering, demo, ingest, referral
 from app.config import AppConfig, get_config
 from app.llm import LLMClient, get_llm_client
 from app.storage import Store, make_store
@@ -67,11 +74,20 @@ class AppContext:
     (which http.server instantiates per-connection) can share them.
     """
 
-    def __init__(self, config: Optional[AppConfig] = None, llm: Optional[LLMClient] = None, store: Optional[Store] = None):
+    def __init__(
+        self,
+        config: Optional[AppConfig] = None,
+        llm: Optional[LLMClient] = None,
+        store: Optional[Store] = None,
+        demo_mode: bool = False,
+    ):
         self.config = config or get_config()
         self.llm = llm or get_llm_client()
         self.store = store or make_store(":memory:")
         self.lock = threading.Lock()
+        # Off unless asked for: the demo routes include a reset that wipes
+        # every table. server.run() turns it on for the demo entrypoint.
+        self.demo_mode = demo_mode
 
 
 def make_handler(ctx: AppContext):
@@ -122,7 +138,19 @@ def make_handler(ctx: AppContext):
                 return self._send_json(200, {"ok": True})
 
             if path == "/":
-                return self._send(200, render("index.html", communities=ctx.config.communities.values()))
+                return self._send(
+                    200,
+                    render("index.html", communities=ctx.config.communities.values(), demo_mode=ctx.demo_mode),
+                )
+
+            if path == "/demo" and ctx.demo_mode:
+                return self._demo_page(qs)
+
+            if path == "/demo/remote" and ctx.demo_mode:
+                return self._demo_remote_page()
+
+            if path == "/demo/state" and ctx.demo_mode:
+                return self._demo_state(qs)
 
             if path == "/desk":
                 return self._desk_list(qs)
@@ -154,6 +182,13 @@ def make_handler(ctx: AppContext):
             if path == "/desk/protected-escalate":
                 return self._handle_protected_escalate()
 
+            if path == "/demo/send" and ctx.demo_mode:
+                return self._demo_send()
+
+            if path == "/demo/reset" and ctx.demo_mode:
+                demo.reset(ctx)
+                return self._send_json(200, {"ok": True})
+
             if path == "/ingest/retry":
                 recovered = ingest.retry_pending(ctx.config, ctx.llm, ctx.store)
                 return self._send_json(200, {"recovered": len(recovered)})
@@ -179,6 +214,65 @@ def make_handler(ctx: AppContext):
                 },
             )
 
+        # -- demo console (see app/demo.py) --
+        def _demo_page(self, qs):
+            community = self._community_or_400(qs)
+            if community is None:
+                return self._send(404, b"unknown community", "text/plain")
+            boot = {
+                "startCommunityId": community.id,
+                "communities": [
+                    {
+                        "id": c.id,
+                        "name": c.name,
+                        "normal_inbound": c.normal_inbound,
+                        "protected_inbound": c.protected_inbound,
+                    }
+                    for c in ctx.config.communities.values()
+                ],
+                # `expect` is the test suite's business (tests/test_demo_console.py), not the page's.
+                "scenes": [{k: v for k, v in scene.items() if k != "expect"} for scene in demo.SCENES],
+                "residents": demo.RESIDENTS,
+                "chips": demo.CHIPS,
+                "maxTextLength": demo.MAX_TEXT_LENGTH,
+            }
+            return self._send(200, render("demo.html", boot=boot))
+
+        def _demo_remote_page(self):
+            boot = {
+                "communities": [
+                    {
+                        "id": c.id,
+                        "name": c.name,
+                        "normal_inbound": c.normal_inbound,
+                        "protected_inbound": c.protected_inbound,
+                    }
+                    for c in ctx.config.communities.values()
+                ],
+                "groups": demo.remote_groups(),
+                "residents": demo.RESIDENTS,
+                "maxTextLength": demo.MAX_TEXT_LENGTH,
+            }
+            return self._send(
+                200,
+                render("demo_remote.html", boot=boot, numbers=demo.presenter_numbers(ctx.config)),
+            )
+
+        def _demo_state(self, qs):
+            community = self._community_or_400(qs)
+            if community is None:
+                return self._send_json(404, {"error": "unknown community"})
+            return self._send_json(200, demo.build_state(ctx, community))
+
+        def _demo_send(self):
+            try:
+                spec = self._parsed_form_or_json()
+                return self._send_json(200, demo.send_message(ctx, spec))
+            except demo.DemoError as exc:
+                return self._send_json(exc.status, {"error": exc.message})
+            except (ValueError, TypeError):
+                return self._send_json(400, {"error": "malformed request"})
+
         def _desk_list(self, qs):
             community = self._community_or_400(qs)
             if community is None:
@@ -191,7 +285,7 @@ def make_handler(ctx: AppContext):
                     if e.action == "escalate"
                 }
                 clusters = clustering.compute_clusters(reports, community, already_escalated=already, patterns=ctx.config.patterns)
-            return self._send(200, render("desk_list.html", community=community, clusters=clusters, communities=ctx.config.communities.values()))
+            return self._send(200, render("desk_list.html", community=community, clusters=clusters, communities=ctx.config.communities.values(), demo_live=ctx.demo_mode))
 
         def _desk_cluster_detail(self, qs):
             community = self._community_or_400(qs)
@@ -295,7 +389,7 @@ def make_handler(ctx: AppContext):
                 # landlord association's business, not the desk's, so they
                 # are filtered out here even though they share the table.
                 entries = [e for e in entries if e.channel == "normal"]
-            return self._send(200, render("audit_log.html", community=community, entries=entries))
+            return self._send(200, render("audit_log.html", community=community, entries=entries, demo_live=ctx.demo_mode))
 
         def _protected_outbox(self, qs):
             community = self._community_or_400(qs)
@@ -309,17 +403,20 @@ def make_handler(ctx: AppContext):
                     if e.action == "protected_escalate"
                 }
                 items = clustering.protected_items(reports, community, already_escalated_report_ids=already)
-            return self._send(200, render("protected_outbox.html", community=community, items=items))
+            return self._send(200, render("protected_outbox.html", community=community, items=items, demo_live=ctx.demo_mode))
 
     return Handler
 
 
 def run(host: str = "127.0.0.1", port: int = 8000, db_path: str = "data/akiyesi.db") -> None:
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
-    ctx = AppContext(store=make_store(db_path))
+    demo_mode = demo.demo_mode_from_env(default=True)
+    ctx = AppContext(store=make_store(db_path), demo_mode=demo_mode)
     handler = make_handler(ctx)
     httpd = ThreadingHTTPServer((host, port), handler)
     print(f"Akiyesi desk running at http://{host}:{port}  (Ctrl+C to stop)")
+    if demo_mode:
+        print(f"Demo console at http://{host}:{port}/demo  (its Reset button wipes all data; set {demo.DEMO_ENV}=0 to turn it off)")
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

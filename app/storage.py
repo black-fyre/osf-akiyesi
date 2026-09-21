@@ -247,6 +247,15 @@ class Store:
         ]
         return entries[0] if entries else None
 
+    def reset_all(self) -> None:
+        """Delete every row from every table. Used only by the demo console's
+        Reset button (app/demo.py), so a demo can be replayed from a clean
+        slate. The schema is untouched.
+        """
+        with self._cursor() as cur:
+            for table in ("reports", "inbound_log", "audit_log"):
+                cur.execute(f"DELETE FROM {table}")  # fixed table names, no user input
+
     def new_id(self) -> str:
         return uuid.uuid4().hex
 

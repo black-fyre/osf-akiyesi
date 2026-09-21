@@ -78,6 +78,19 @@ def _span_days(reports: List[Report]) -> float:
     return (max(times) - min(times)).total_seconds() / 86400.0
 
 
+def resolve_thresholds(community: Community, pattern_def: Optional[PatternDefinition]):
+    """The (watch, escalate) SpanThresholds that apply to one pattern in one
+    community: the pattern's own override when config/patterns.yaml sets one,
+    otherwise the community default. One function, so the desk logic below
+    and anything that displays the bar (the demo console) can never disagree
+    about what the bar is.
+    """
+    default = community.thresholds.normal_channel
+    watch = (pattern_def.watch_override if pattern_def else None) or default.watch
+    escalate = (pattern_def.escalate_override if pattern_def else None) or default.escalate
+    return watch, escalate
+
+
 def compute_clusters(
     reports: List[Report],
     community: Community,
@@ -99,7 +112,6 @@ def compute_clusters(
     this parameter is additive and backward compatible by construction.
     """
     already_escalated = already_escalated or {}
-    default_thresholds = community.thresholds.normal_channel
     patterns_by_id = {p.id: p for p in (patterns or [])}
 
     by_pattern: Dict[str, List[Report]] = {}
@@ -111,10 +123,7 @@ def compute_clusters(
     summaries: List[ClusterSummary] = []
     for pattern_id, group in by_pattern.items():
         pattern_def = patterns_by_id.get(pattern_id)
-        watch_threshold = (pattern_def.watch_override if pattern_def else None) or default_thresholds.watch
-        escalate_threshold = (
-            pattern_def.escalate_override if pattern_def else None
-        ) or default_thresholds.escalate
+        watch_threshold, escalate_threshold = resolve_thresholds(community, pattern_def)
         high_signal = bool(pattern_def.high_signal) if pattern_def else False
 
         distinct_senders = len({r.sender_hash for r in group})
