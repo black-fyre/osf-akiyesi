@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Quick send &middot; {{ community.name }}{% endblock %}
+{% block content %}
+<form method="get" action="/demo/quick" style="margin-bottom:1rem">
+  <select name="community" onchange="this.form.submit()">
+    {% for c in communities %}<option value="{{ c.id }}" {% if c.id == community.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+  </select>
+  <a href="/desk?community={{ community.id }}" target="desk">open desk</a> &middot;
+  <a href="/protected-outbox?community={{ community.id }}" target="outbox">open protected inbox</a>
+</form>
+
+{% if error %}<div class="guard-warning">{{ error }}</div>{% endif %}
+
+<div class="card">
+  <form method="post" action="/demo/quick/send">
+    <input type="hidden" name="community_id" value="{{ community.id }}">
+    <textarea name="text" rows="3" maxlength="{{ max_len }}" style="width:100%;box-sizing:border-box" placeholder="What was observed, when, where" required></textarea>
+    <p>
+      <select name="resident">{% for r in residents %}<option value="{{ r.id }}">{{ r.label }}</option>{% endfor %}</select>
+      <select name="line"><option value="normal">normal line</option><option value="safe">protected line</option></select>
+      <label>days ago <input type="number" name="days_ago" value="0" min="0" max="30" step="1" style="width:4rem"></label>
+      <button>Send</button>
+    </p>
+  </form>
+</div>
+
+<p>
+{% for s in scenes %}
+  <form method="post" action="/demo/quick/scene" style="display:inline">
+    <input type="hidden" name="scene" value="{{ s.id }}">
+    <button title="{{ s.beat }}">{{ s.title }} ({{ s.messages|length }}){% if s.community_id != community.id %} &rarr;{% endif %}</button>
+  </form>
+{% endfor %}
+  <form method="post" action="/demo/quick/reset" style="display:inline" onsubmit="return confirm('Wipe all data?')">
+    <input type="hidden" name="community_id" value="{{ community.id }}">
+    <button style="background:#7a0000">Reset all</button>
+  </form>
+</p>
+<p class="muted">Reader: {{ reader }}. Every message goes through the same path as the SMS webhook. Scenes marked &rarr; belong to another community and switch to it.</p>
+
+<table>
+  <tr><th>Day</th><th>From</th><th>What the pipeline kept</th><th>Result</th></tr>
+  {% for e in log %}
+  <tr>
+    <td>{{ e.date or "" }}</td>
+    <td>{{ e.who }}</td>
+    {% if not e.processed %}
+    <td colspan="2" class="muted">{{ e.note }}</td>
+    {% elif e.channel == "protected" %}
+    <td class="muted">Sent to the protected inbox{% if e.rerouted %} (rerouted from the normal line){% endif %}. Not shown here.</td>
+    <td><span class="badge badge-protected_ready">protected</span></td>
+    {% else %}
+    <td>{{ e.redacted_text }}
+      {% if e.categories_redacted %}<br><span class="muted">removed: {{ e.categories_redacted|join(", ") }}</span>{% endif %}
+      {% if e.rejection_reason %}<br><span class="muted">refused: {{ e.rejection_reason }}</span>{% endif %}
+    </td>
+    <td>
+      {{ e.pattern_name or e.pattern_id or e.status }}
+      {% if e.cluster %}<br><span class="badge badge-{{ e.cluster.status }}">{{ e.cluster.status.replace('_', ' ') }}</span>
+        <span class="muted">{{ e.cluster.distinct_senders }} senders</span>{% endif %}
+    </td>
+    {% endif %}
+  </tr>
+  {% else %}
+  <tr><td colspan="4" class="muted">Nothing sent yet.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

@@ -21,6 +21,8 @@ Routes:
 Demo console (only when AppContext.demo_mode is on; 404 otherwise, see app/demo.py):
   GET  /demo                                the console page
   GET  /demo/remote                         presenter remote: one-click messages and talking points
+  GET  /demo/quick?community=<id>           plain form: send one message or a scene, see what the pipeline kept
+  POST /demo/quick/send | /scene | /reset   the quick page's actions (redirect back, no JS)
   GET  /demo/state?community=<id>           signal board data (normal channel only)
   POST /demo/send                           send one message through the real webhook path
   POST /demo/reset                          wipe all data, for replaying a demo
@@ -89,6 +91,8 @@ class AppContext:
         # Off unless asked for: the demo routes include a reset that wipes
         # every table. server.run() turns it on for the demo entrypoint.
         self.demo_mode = demo_mode
+        # What the /demo/quick page has sent, newest last. Demo only.
+        self.quick_log: list = []
 
 
 def make_handler(ctx: AppContext):
@@ -150,6 +154,9 @@ def make_handler(ctx: AppContext):
             if path == "/demo/remote" and ctx.demo_mode:
                 return self._demo_remote_page()
 
+            if path == "/demo/quick" and ctx.demo_mode:
+                return self._demo_quick_page(qs)
+
             if path == "/demo/state" and ctx.demo_mode:
                 return self._demo_state(qs)
 
@@ -185,6 +192,9 @@ def make_handler(ctx: AppContext):
 
             if path == "/demo/send" and ctx.demo_mode:
                 return self._demo_send()
+
+            if path.startswith("/demo/quick/") and ctx.demo_mode:
+                return self._demo_quick_action(path)
 
             if path == "/demo/reset" and ctx.demo_mode:
                 demo.reset(ctx)
@@ -267,6 +277,58 @@ def make_handler(ctx: AppContext):
                     ),
                 ),
             )
+
+        def _demo_quick_page(self, qs, error: Optional[str] = None, status: int = 200):
+            community = self._community_or_400(qs)
+            if community is None:
+                return self._send(404, b"unknown community", "text/plain")
+            return self._send(
+                status,
+                render(
+                    "demo_quick.html",
+                    community=community,
+                    communities=ctx.config.communities.values(),
+                    scenes=demo.SCENES,
+                    residents=demo.RESIDENTS,
+                    max_len=demo.MAX_TEXT_LENGTH,
+                    log=reversed(ctx.quick_log),
+                    error=error,
+                    reader=(
+                        f"Claude ({ctx.llm.model_name})"
+                        if getattr(ctx.llm, "backend_name", "") == "claude"
+                        else "rule-based lists"
+                    ),
+                ),
+            )
+
+        def _demo_quick_action(self, path):
+            form = self._parsed_form_or_json()
+            community_id = form.get("community_id", "")
+            try:
+                if path == "/demo/quick/send":
+                    specs = [form]
+                elif path == "/demo/quick/scene":
+                    scene = next((s for s in demo.SCENES if s["id"] == form.get("scene")), None)
+                    if scene is None:
+                        raise demo.DemoError(404, "unknown scene")
+                    community_id = scene["community_id"]
+                    specs = [{**m, "community_id": community_id} for m in scene["messages"]]
+                elif path == "/demo/quick/reset":
+                    demo.reset(ctx)
+                    ctx.quick_log.clear()
+                    specs = []
+                else:
+                    return self._send(404, b"not found", "text/plain")
+                for spec in specs:
+                    result = demo.send_message(ctx, spec)
+                    ctx.quick_log.append({**result, "who": f"Resident {spec['resident']}"})
+            except demo.DemoError as exc:
+                return self._demo_quick_page({"community": [community_id]}, error=exc.message, status=exc.status)
+            # Post/redirect/get, so a browser refresh never resends a message.
+            self.send_response(303)
+            self.send_header("Location", f"/demo/quick?community={community_id}")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
 
         def _demo_state(self, qs):
             community = self._community_or_400(qs)
