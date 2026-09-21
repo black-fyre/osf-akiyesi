@@ -476,3 +476,96 @@ class DemoModeOffTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class StagedRecordingTests(unittest.TestCase):
+    """seed/load_into_server.py --hold-last oke-ado-phase2 leaves Oke-Ado at
+    Watch with 4 of 5 senders, through the real /webhook/sms route, and the
+    remote's next message is the Yorùbá fifth that tips it to Ready. Every
+    other community loads exactly as the full seed does."""
+
+    PORT = 8193
+
+    @classmethod
+    def setUpClass(cls):
+        from pathlib import Path
+        from seed import load_into_server
+
+        cls.seed_path = Path(load_into_server.SEED_DIR) / "reports.json"
+        cls.ctx = _ctx(demo_mode=True)
+        cls.httpd = _serve(cls.ctx, cls.PORT)
+        load_into_server.load(cls.seed_path, f"http://127.0.0.1:{cls.PORT}", hold_last=demo.OKE_ADO)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.httpd.shutdown()
+        cls.httpd.server_close()
+
+    def _burglary(self, ctx):
+        state = demo.build_state(ctx, get_config().community_by_id(demo.OKE_ADO))
+        return next(c for c in state["clusters"] if c["pattern_id"] == "burglary_casing")
+
+    def test_oke_ado_sits_at_watch_with_four_of_five(self):
+        cluster = self._burglary(self.ctx)
+        self.assertEqual(cluster["status"], "watch")
+        self.assertEqual(cluster["distinct_senders"], 4)
+        self.assertEqual(cluster["escalate"]["senders"], 5)
+
+    def test_other_communities_match_the_full_seed(self):
+        from app import ingest
+
+        full = _ctx()
+        for r in json.loads(self.seed_path.read_text(encoding="utf-8")):
+            ingest.receive_webhook(r, full.config, full.llm, full.store)
+        config = get_config()
+        for cid in config.communities:
+            if cid == demo.OKE_ADO:
+                continue
+            with self.subTest(community=cid):
+                a = demo.build_state(self.ctx, config.community_by_id(cid))
+                b = demo.build_state(full, config.community_by_id(cid))
+                self.assertEqual(a["clusters"], b["clusters"])
+                self.assertEqual(a["counts"], b["counts"])
+                self.assertEqual(a["protected_inbox"], b["protected_inbox"])
+        seeded = json.loads(self.seed_path.read_text(encoding="utf-8"))
+        self.assertTrue(any(r.get("id", "").startswith("okeado-clean-") for r in seeded))  # file untouched
+
+    def test_remote_marks_four_sent_and_its_next_message_tips_to_ready_in_yoruba(self):
+        status, html = _request(self.PORT, "/demo/remote")
+        self.assertEqual(status, 200)
+        self.assertIn('"presend": ["street-speaks:0", "street-speaks:1", "street-speaks:2", "street-speaks:3"]', html)
+        self.assertNotIn('"stageToken": null', html)
+
+        groups = demo.remote_groups(staged=True)
+        street = groups[0]
+        self.assertEqual(street["id"], "street-speaks")
+        fifth = street["messages"][4]
+        self.assertEqual(fifth, next(s for s in demo.SCENES if s["id"] == "yoruba")["messages"][0])
+        self.assertNotIn(fifth, next(g for g in groups if g["id"] == "yoruba")["messages"])
+
+        _, desk = _request(self.PORT, f"/desk?community={demo.OKE_ADO}")
+        self.assertIn('badge badge-watch">watch<', desk)
+        self.assertNotIn('badge badge-escalate_ready"', desk)
+
+        status, body = _request(self.PORT, "/demo/send", {**fifth, "community_id": street["community_id"]})
+        self.assertEqual(status, 200)
+        result = json.loads(body)
+        self.assertEqual(result["locale"], "yo")
+        self.assertIn("stranger_or_foreigner_markers", result["categories_redacted"])
+        self.assertEqual(result["previous_status"], "watch")
+        self.assertEqual(result["cluster"]["status"], "escalate_ready")
+        self.assertEqual(result["cluster"]["distinct_senders"], 5)
+        self.assertFalse(result["cluster"]["profiling_fired"])
+
+        # and the desk, the main app, now shows it Ready
+        _, desk = _request(self.PORT, f"/desk?community={demo.OKE_ADO}")
+        self.assertIn('badge badge-escalate_ready">escalate ready<', desk)
+
+
+class UnstagedRemoteTests(unittest.TestCase):
+    def test_no_staging_means_no_presend_and_the_script_as_written(self):
+        ctx = _ctx()
+        self.assertIsNone(demo.stage_token(ctx.store))
+        self.assertEqual(demo.remote_presend(False), [])
+        groups = demo.remote_groups()
+        self.assertEqual(groups[0]["messages"], demo.SCENES[0]["messages"])

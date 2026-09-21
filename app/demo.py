@@ -311,16 +311,86 @@ REMOTE_EXTRAS: List[Dict[str, Any]] = [
 ]
 
 
-def remote_groups() -> List[Dict[str, Any]]:
+# ---------------------------------------------------------------------------
+# staged recording (seed/load_into_server.py --hold-last oke-ado-phase2)
+# ---------------------------------------------------------------------------
+#
+# For a recording, the community should already sit at Watch with four
+# senders, and the fifth should arrive live. The loader posts the first four
+# street-speaks messages through /webhook/sms with these external ids. The
+# remote sees them in the store, ticks them as sent, and makes the Yorùbá
+# message (the yoruba scene's first) the live fifth, so the moment the bar
+# tips to Ready also shows language detection and redaction.
+
+STAGED_SCENE = "street-speaks"
+STAGED_LIVE_FIFTH = ("yoruba", 0)  # (scene id, message index)
+
+
+def _scene(scene_id: str) -> Dict[str, Any]:
+    return next(s for s in SCENES if s["id"] == scene_id)
+
+
+def staged_message_id(index: int) -> str:
+    return f"stage-{STAGED_SCENE}-{index + 1}"
+
+
+def staged_payloads(config, now=None) -> List[Dict[str, Any]]:
+    """Webhook payloads for the first four street-speaks messages, dated
+    relative to `now` exactly as the scene dates them."""
+    scene = _scene(STAGED_SCENE)
+    community = config.community_by_id(scene["community_id"])
+    now = now or utcnow()
+    return [
+        {
+            "id": staged_message_id(i),
+            "to": community.normal_inbound,
+            "from": _PHONE_BY_RESIDENT[m["resident"]],
+            "text": m["text"],
+            "date": (now - timedelta(days=m["days_ago"])).isoformat(),
+        }
+        for i, m in enumerate(scene["messages"][:-1])
+    ]
+
+
+def stage_token(store) -> Optional[str]:
+    """The first staged report's store id if all four staged messages are in,
+    else None. A fresh load gives a fresh id, so the remote can tell a new
+    staged run from the one it already ticked."""
+    count = len(_scene(STAGED_SCENE)["messages"]) - 1
+    found = [store.find_report_by_external_id(staged_message_id(i)) for i in range(count)]
+    return found[0].id if all(found) else None
+
+
+def remote_groups(staged: bool = False) -> List[Dict[str, Any]]:
     """Message groups for the remote: the scripted scenes in order, then the
-    Q&A extras. `expect` stays out, as it does for the console page."""
+    Q&A extras. `expect` stays out, as it does for the console page.
+
+    When `staged`, street-speaks ends with the Yorùbá message instead of its
+    own fifth, and the yoruba scene no longer repeats it."""
+    live_scene, live_index = STAGED_LIVE_FIFTH
+    live = _scene(live_scene)["messages"][live_index]
     groups = []
     for scene in SCENES + REMOTE_EXTRAS:
         group = {k: v for k, v in scene.items() if k != "expect"}
         group.setdefault("talking_points", TALKING_POINTS.get(scene["id"], []))
         group["extra"] = scene in REMOTE_EXTRAS
+        if staged and scene["id"] == STAGED_SCENE:
+            group["messages"] = scene["messages"][:-1] + [live]
+            group["watch_for"] = (
+                "Four senders are already in, so the bar sits at Watch. The fifth arrives "
+                "live, in Yorùbá: read as Yorùbá, the stranger word stripped, and the bar tips to Ready."
+            )
+        elif staged and scene["id"] == live_scene:
+            group["messages"] = [m for i, m in enumerate(scene["messages"]) if i != live_index]
         groups.append(group)
     return groups
+
+
+def remote_presend(staged: bool) -> List[str]:
+    """Remote tick keys (group id:index) for messages already in the store."""
+    if not staged:
+        return []
+    return [f"{STAGED_SCENE}:{i}" for i in range(len(_scene(STAGED_SCENE)["messages"]) - 1)]
 
 
 def presenter_numbers(config) -> Dict[str, Any]:

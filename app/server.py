@@ -250,6 +250,9 @@ def make_handler(ctx: AppContext):
             return self._send(200, render("demo.html", boot=boot))
 
         def _demo_remote_page(self):
+            with ctx.lock:
+                token = demo.stage_token(ctx.store)
+            staged = token is not None
             boot = {
                 "communities": [
                     {
@@ -260,7 +263,9 @@ def make_handler(ctx: AppContext):
                     }
                     for c in ctx.config.communities.values()
                 ],
-                "groups": demo.remote_groups(),
+                "groups": demo.remote_groups(staged),
+                "presend": demo.remote_presend(staged),
+                "stageToken": token,
                 "residents": demo.RESIDENTS,
                 "maxTextLength": demo.MAX_TEXT_LENGTH,
             }

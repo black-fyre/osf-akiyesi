@@ -269,6 +269,13 @@
   var sent = {};
   try { sent = JSON.parse(localStorage.getItem(STORE_KEY) || '{}') || {}; } catch (e) { sent = {}; }
   function saveSent() { try { localStorage.setItem(STORE_KEY, JSON.stringify(sent)); } catch (e) { /* ticks only last this page view */ } }
+  // Messages the seed loader already posted (--hold-last), so N goes on from
+  // there. A new load has a new token, and ticks from an earlier run are dropped.
+  if (boot.stageToken && sent._stage !== boot.stageToken) {
+    sent = { _stage: boot.stageToken };
+    boot.presend.forEach(function (k) { sent[k] = true; });
+    saveSent();
+  }
 
   var busy = false;
   var freeLine = 'normal';

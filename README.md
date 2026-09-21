@@ -164,6 +164,10 @@ curl -s -X POST http://127.0.0.1:8000/simulate/inbound \
   -d '{"id":"demo-1","to":"40404*REPORT-OKEADO2","from":"+2348011112222","text":"Someone was checking gates along Alade Street late last night."}'
 
 # then open http://127.0.0.1:8000/desk?community=oke-ado-phase2
+
+# or load the seed through /webhook/sms, with Oke-Ado staged at 4 of 5 senders
+# (Watch) so the 5th, in Yorùbá, can be sent live from /demo/remote with N
+python3 seed/load_into_server.py --hold-last oke-ado-phase2
 ```
 
 ## Demo console
