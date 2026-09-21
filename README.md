@@ -217,7 +217,7 @@ The scenes live in `app/demo.py` as data, each with the outcome it is meant to
 produce, and `tests/test_demo_console.py` replays every scene through the real
 pipeline and checks that outcome, so the script cannot drift from the rules.
 
-Run the test suite (147 tests, covers every item in CLAUDE.md's "Tests that
+Run the test suite (165 tests, covers every item in CLAUDE.md's "Tests that
 must pass" list, plus the LLM response-parsing and Claude SDK-wiring tests
 described above):
 
@@ -262,7 +262,7 @@ prompts/                versioned LLM prompts (redaction, classification, extrac
 seed/                   generate_seed.py, reports.json, bodija_scale_replay.json, replay.py
 scripts/smoke_test_claude.py   three real Anthropic API calls, one per prompt
 scripts/replay_demo_on_claude.py   every demo scene on Claude, compared with its scripted outcome
-tests/                  147 tests, one file per component, covering every CLAUDE.md-required test
+tests/                  165 tests, one file per component, covering every CLAUDE.md-required test
 docs/ai-usage.md         AI-usage log (what was delegated, what was rejected, a bug a test caught)
 ```
 
